@@ -248,13 +248,12 @@ class ClubEvent {
     required DocumentSnapshot<Map<String, dynamic>> doc,
   }) {
     final data = doc.data() ?? {};
-    final rsvpRaw = data[FirestoreFields.rsvp] as Map<String, dynamic>? ?? {};
-    final rsvpUpdatedAtRaw =
-        data[FirestoreFields.rsvpUpdatedAt] as Map<String, dynamic>? ?? {};
-    final seenAtRaw =
-        data[FirestoreFields.seenAt] as Map<String, dynamic>? ?? {};
-    final attendanceRaw =
-        data[FirestoreFields.attendance] as Map<String, dynamic>? ?? {};
+    final rsvpRaw = _asStringKeyedMap(data[FirestoreFields.rsvp]);
+    final rsvpUpdatedAtRaw = _asStringKeyedMap(
+      data[FirestoreFields.rsvpUpdatedAt],
+    );
+    final seenAtRaw = _asStringKeyedMap(data[FirestoreFields.seenAt]);
+    final attendanceRaw = _asStringKeyedMap(data[FirestoreFields.attendance]);
 
     return ClubEvent(
       id: doc.id,
@@ -299,6 +298,16 @@ class ClubEvent {
                   .toList() ??
               const [],
     );
+  }
+
+  /// Map string→valeur si [raw] est bien une map ; sinon vide (ignore un
+  /// Timestamp / scalaire legacy mal placé sur `rsvpUpdatedAt`, `seenAt`…).
+  static Map<String, dynamic> _asStringKeyedMap(Object? raw) {
+    if (raw is! Map) return const {};
+    return {
+      for (final entry in raw.entries)
+        if (entry.key is String) entry.key as String: entry.value,
+    };
   }
 
   /// Map Firestore `memberId → Timestamp` → dates (valeurs invalides ignorées).

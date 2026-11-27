@@ -18,6 +18,7 @@ class ClubAnalytics {
   static const String actionMyFee = 'my_fee';
   static const String actionMembers = 'members';
   static const String actionActivity = 'activity';
+  static const String actionAttendance = 'attendance';
   static const String actionFees = 'fees';
   static const String actionAppearance = 'appearance';
   static const String actionLocations = 'locations';

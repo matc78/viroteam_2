@@ -152,6 +152,18 @@ class ClubAccess {
   bool canReviewTraining(Iterable<String> teamIds, {required bool allTeams}) =>
       canCoachTraining(teamIds, allTeams: allTeams) || isAdmin;
 
+  // ——— Présences ———
+
+  /// Voit les présences de tout le club : droit membres, équipes ou planning
+  /// (même règle que `seesWholeClub` du portail, `bureauPermissions.ts`).
+  bool get seesWholeClub =>
+      can(ClubPermission.manageMembers) ||
+      can(ClubPermission.manageTeams) ||
+      can(ClubPermission.manageEvents);
+
+  /// Ouvre la page Présences : tout le club, ou ses équipes pour un coach.
+  bool get canViewAttendance => seesWholeClub || isTeamCoach;
+
   // ——— Annonces ———
 
   /// Peut publier une annonce (au club, ou seulement à ses équipes).

@@ -14,6 +14,7 @@ import 'package:viro_team_v2/features/members/utils/member_team_labels.dart';
 import 'package:viro_team_v2/features/members/widgets/member_permissions_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/invite_parent_sheet.dart';
 import 'package:viro_team_v2/features/members/widgets/member_avatar.dart';
+import 'package:viro_team_v2/features/members/widgets/member_attendance_section.dart';
 import 'package:viro_team_v2/features/members/widgets/member_sparring_section.dart';
 import 'package:viro_team_v2/features/teams/providers/team_providers.dart';
 import 'package:viro_team_v2/models/club.dart';
@@ -466,6 +467,13 @@ class _MemberDetailSheetState extends ConsumerState<MemberDetailSheet> {
                 ],
               ],
             ),
+          ),
+          MemberAttendanceSection(
+            clubId: widget.club.id,
+            memberId: widget.member.memberId,
+            accent: accent,
+            borderColor: accentStyle.border,
+            titleBuilder: (label) => _SectionLabel(label: label),
           ),
           MemberSparringSection(
             clubId: widget.club.id,

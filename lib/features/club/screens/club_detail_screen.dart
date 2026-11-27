@@ -56,6 +56,8 @@ import 'package:viro_team_v2/features/home/providers/member_events_provider.dart
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
+import 'package:viro_team_v2/features/club/providers/club_attendance_providers.dart';
+import 'package:viro_team_v2/services/attendance/attendance_stats.dart';
 import 'package:viro_team_v2/models/club_permission.dart';
 
 /// Fiche club : aperçu vivant (en-tête, prochain événement, à faire,
@@ -99,16 +101,15 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     String? badgeOverride,
   }) {
     final member = ref.read(clubMemberProvider(widget.clubId)).value;
-    final role = badgeOverride ??
+    final role =
+        badgeOverride ??
         analyticsActiveRole(
           hasMemberDoc: member != null,
           badge: member?.primaryBadge,
         );
-    ref.read(clubAnalyticsProvider).trackActionTapped(
-          action: action,
-          role: role,
-          zone: zone,
-        );
+    ref
+        .read(clubAnalyticsProvider)
+        .trackActionTapped(action: action, role: role, zone: zone);
     context.push(route);
   }
 
@@ -177,13 +178,20 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     ref.invalidate(homeClubTeamsProvider);
     if (isChildView && selected != null) {
       ref.invalidate(
-        clubEventsForMemberProvider(
-          (clubId: clubId, memberId: selected.memberId),
-        ),
+        clubEventsForMemberProvider((
+          clubId: clubId,
+          memberId: selected.memberId,
+        )),
       );
       ref.invalidate(clubAudienceMemberProvider(clubId));
     }
 
+    ref.invalidate(
+      clubAttendanceProvider((
+        clubId: clubId,
+        period: AttendancePeriod.last30Days,
+      )),
+    );
     await Future.wait([
       ref.refresh(clubProvider(clubId).future),
       ref.refresh(clubAttendanceRateProvider(clubId).future),
@@ -197,9 +205,10 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     if (isChildView && selected != null) {
       streamWaits.add(
         ref.read(
-          clubEventsForMemberProvider(
-            (clubId: clubId, memberId: selected.memberId),
-          ).future,
+          clubEventsForMemberProvider((
+            clubId: clubId,
+            memberId: selected.memberId,
+          )).future,
         ),
       );
       streamWaits.add(ref.read(clubAudienceMemberProvider(clubId).future));
@@ -220,99 +229,100 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
     final selected = ref.watch(selectedClubAudienceProvider(clubId));
     // Cible Moi | enfant pas encore connue : on attend plutôt que d'afficher
     // (et de faire répondre) la vue du compte connecté.
-    final audienceResolving =
-        ref.watch(clubAudienceResolvingProvider(clubId));
+    final audienceResolving = ref.watch(clubAudienceResolvingProvider(clubId));
     final isChildView = selected?.isChild == true;
     final familyChildAsync = isChildView
         ? ref.watch(clubAudienceMemberProvider(clubId))
         : const AsyncValue<ClubMember?>.data(null);
     final eventsAsync = isChildView && selected != null
         ? ref.watch(
-            clubEventsForMemberProvider(
-              (clubId: clubId, memberId: selected.memberId),
-            ),
+            clubEventsForMemberProvider((
+              clubId: clubId,
+              memberId: selected.memberId,
+            )),
           )
         : ref.watch(clubEventsProvider(clubId));
-    final announcementsAsync =
-        ref.watch(visibleClubAnnouncementsProvider(clubId));
+    final announcementsAsync = ref.watch(
+      visibleClubAnnouncementsProvider(clubId),
+    );
     final memberAccent = ref.watch(clubMemberAccentProvider(clubId));
 
     return ClubAccentTheme(
       accentColor: memberAccent,
       child: ViroScaffold(
-      fallbackRoute: AppRoutes.home,
-      appBar: ViroAppBar(
         fallbackRoute: AppRoutes.home,
-        title: Text(clubAsync.value?.name ?? ProjectConfig.appName),
-        onTitleTap: () => context.go(AppRoutes.home),
-      ),
-      body: clubAsync.when(
-        loading: () => const Center(child: ViroLogoLoader()),
-        error: (_, _) => ViroErrorState(
-          onRetry: () => ref.invalidate(clubProvider(clubId)),
+        appBar: ViroAppBar(
+          fallbackRoute: AppRoutes.home,
+          title: Text(clubAsync.value?.name ?? ProjectConfig.appName),
+          onTitleTap: () => context.go(AppRoutes.home),
         ),
-        data: (club) {
-          if (club == null) {
-            return Center(child: Text(AppCopy.common.clubNotFound));
-          }
-          if (audienceResolving) {
-            return const Center(child: ViroLogoLoader());
-          }
-
-          final brandColors = resolveClubBrandColors(
-            brandColorHex: club.brandColorHex,
-            clubId: club.id,
-          );
-          final memberAccent = brandColors.memberZoneColor;
-          final managementAccent = brandColors.managementZoneColor;
-
-          return ViroRefreshIndicator(
-            onRefresh: _refreshClub,
-            child: CustomScrollView(
-            physics: ViroRefreshIndicator.scrollPhysics,
-            slivers: [
-              if (isChildView && selected != null) ...[
-                SliverToBoxAdapter(
-                  child: _ClubHeader(
-                    club: club,
-                    familyChild: familyChildAsync.value,
-                    accent: memberAccent,
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: ClubAudienceSwitcher(clubId: clubId),
-                ),
-                SliverToBoxAdapter(
-                  child: _FamilyContextBanner(
-                    childLabel: selected.label,
-                    accent: memberAccent,
-                  ),
-                ),
-                ..._buildFamilySlivers(
-                  club: club,
-                  memberAccent: memberAccent,
-                  managementAccent: managementAccent,
-                  accentSecondary: brandColors.secondary,
-                  childMemberId: selected.memberId,
-                  childLabel: selected.label,
-                  eventsAsync: eventsAsync,
-                  announcementsAsync: announcementsAsync,
-                ),
-              ] else
-                ..._buildMemberSlivers(
-                  club: club,
-                  member: memberAsync.value,
-                  eventsAsync: eventsAsync,
-                  announcementsAsync: announcementsAsync,
-                  memberAccent: memberAccent,
-                  managementAccent: managementAccent,
-                  accentSecondary: brandColors.secondary,
-                ),
-            ],
+        body: clubAsync.when(
+          loading: () => const Center(child: ViroLogoLoader()),
+          error: (_, _) => ViroErrorState(
+            onRetry: () => ref.invalidate(clubProvider(clubId)),
           ),
-          );
-        },
-      ),
+          data: (club) {
+            if (club == null) {
+              return Center(child: Text(AppCopy.common.clubNotFound));
+            }
+            if (audienceResolving) {
+              return const Center(child: ViroLogoLoader());
+            }
+
+            final brandColors = resolveClubBrandColors(
+              brandColorHex: club.brandColorHex,
+              clubId: club.id,
+            );
+            final memberAccent = brandColors.memberZoneColor;
+            final managementAccent = brandColors.managementZoneColor;
+
+            return ViroRefreshIndicator(
+              onRefresh: _refreshClub,
+              child: CustomScrollView(
+                physics: ViroRefreshIndicator.scrollPhysics,
+                slivers: [
+                  if (isChildView && selected != null) ...[
+                    SliverToBoxAdapter(
+                      child: _ClubHeader(
+                        club: club,
+                        familyChild: familyChildAsync.value,
+                        accent: memberAccent,
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: ClubAudienceSwitcher(clubId: clubId),
+                    ),
+                    SliverToBoxAdapter(
+                      child: _FamilyContextBanner(
+                        childLabel: selected.label,
+                        accent: memberAccent,
+                      ),
+                    ),
+                    ..._buildFamilySlivers(
+                      club: club,
+                      memberAccent: memberAccent,
+                      managementAccent: managementAccent,
+                      accentSecondary: brandColors.secondary,
+                      childMemberId: selected.memberId,
+                      childLabel: selected.label,
+                      eventsAsync: eventsAsync,
+                      announcementsAsync: announcementsAsync,
+                    ),
+                  ] else
+                    ..._buildMemberSlivers(
+                      club: club,
+                      member: memberAsync.value,
+                      eventsAsync: eventsAsync,
+                      announcementsAsync: announcementsAsync,
+                      memberAccent: memberAccent,
+                      managementAccent: managementAccent,
+                      accentSecondary: brandColors.secondary,
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -359,7 +369,10 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
       if (attendanceRate != null)
         ClubHeroStat(
           icon: ViroIcons.checkCircle,
-          label: AppCopy.club.heroAttendance(attendanceRate.round()),
+          label: AppCopy.club.heroAttendance(attendanceRate),
+          onTap: access.canViewAttendance
+              ? () => context.push(AppRoutes.clubAttendancePath(clubId))
+              : null,
         ),
     ];
 
@@ -416,10 +429,10 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
               ),
               onMyFee: hasActiveSeason
                   ? () => _trackClubActionAndPush(
-                        action: ClubAnalytics.actionMyFee,
-                        zone: ClubAnalytics.zoneShortcut,
-                        route: AppRoutes.clubMyFeePath(clubId),
-                      )
+                      action: ClubAnalytics.actionMyFee,
+                      zone: ClubAnalytics.zoneShortcut,
+                      route: AppRoutes.clubMyFeePath(clubId),
+                    )
                   : null,
             ),
           ),
@@ -461,6 +474,11 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                 action: ClubAnalytics.actionActivity,
                 zone: ClubAnalytics.zoneManagement,
                 route: AppRoutes.clubActivityPath(clubId),
+              ),
+              onAttendance: () => _trackClubActionAndPush(
+                action: ClubAnalytics.actionAttendance,
+                zone: ClubAnalytics.zoneManagement,
+                route: AppRoutes.clubAttendancePath(clubId),
               ),
               onFees: () => _trackClubActionAndPush(
                 action: ClubAnalytics.actionFees,
@@ -535,11 +553,13 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
             .where(
               (e) =>
                   e.id != next?.id &&
-                  !_hiddenPendingKeys
-                      .contains(_hiddenPendingKey(selfMemberId, e.id)),
+                  !_hiddenPendingKeys.contains(
+                    _hiddenPendingKey(selfMemberId, e.id),
+                  ),
             )
             .toList();
-        final teamsByClub = ref.watch(homeClubTeamsProvider).value ??
+        final teamsByClub =
+            ref.watch(homeClubTeamsProvider).value ??
             const <String, Map<String, ClubTeam>>{};
 
         return [
@@ -560,8 +580,8 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                       child: Text(
                         AppCopy.club.noUpcomingEvent,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: context.viroPalette.textSecondary,
-                            ),
+                          color: context.viroPalette.textSecondary,
+                        ),
                       ),
                     )
                   : MemberUpcomingEventsList(
@@ -611,20 +631,17 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                 horizontal: ViroSpacing.screenHorizontal,
               ),
               sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final event = otherPending[index];
-                    return EventRsvpCard(
-                      event: event,
-                      clubName: club.name,
-                      clubColor: accent,
-                      clubColorSecondary: accentSecondary,
-                      onPresent: () => _setRsvp(event, RsvpStatus.yes),
-                      onAbsent: () => _setRsvp(event, RsvpStatus.no),
-                    );
-                  },
-                  childCount: otherPending.length,
-                ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final event = otherPending[index];
+                  return EventRsvpCard(
+                    event: event,
+                    clubName: club.name,
+                    clubColor: accent,
+                    clubColorSecondary: accentSecondary,
+                    onPresent: () => _setRsvp(event, RsvpStatus.yes),
+                    onAbsent: () => _setRsvp(event, RsvpStatus.no),
+                  );
+                }, childCount: otherPending.length),
               ),
             ),
           ],
@@ -658,9 +675,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
             ),
           ),
         ],
-        error: (_, _) => [
-          const SliverToBoxAdapter(child: ViroErrorState()),
-        ],
+        error: (_, _) => [const SliverToBoxAdapter(child: ViroErrorState())],
         data: (state) {
           final next = state.upcoming.firstOrNull;
           if (next == null) {
@@ -676,9 +691,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
                   padding: const EdgeInsets.symmetric(
                     horizontal: ViroSpacing.screenHorizontal,
                   ),
-                  child: Text(
-                    AppCopy.club.noUpcomingForChild(childLabel),
-                  ),
+                  child: Text(AppCopy.club.noUpcomingForChild(childLabel)),
                 ),
               ),
             ];
@@ -805,12 +818,14 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen> {
               child: Row(
                 children: [
                   Expanded(
-                    child: _SectionTitle(title: AppCopy.club.announcementsSection, accentColor: accent),
+                    child: _SectionTitle(
+                      title: AppCopy.club.announcementsSection,
+                      accentColor: accent,
+                    ),
                   ),
                   TextButton(
-                    onPressed: () => context.push(
-                      AppRoutes.clubAnnouncementsPath(clubId),
-                    ),
+                    onPressed: () =>
+                        context.push(AppRoutes.clubAnnouncementsPath(clubId)),
                     child: Text(AppCopy.common.seeAll),
                   ),
                 ],
@@ -928,10 +943,7 @@ class _ClubHeader extends StatelessWidget {
 
 /// Rappelle que la fiche club est ouverte en mode parent (infos enfant).
 class _FamilyContextBanner extends StatelessWidget {
-  const _FamilyContextBanner({
-    required this.childLabel,
-    required this.accent,
-  });
+  const _FamilyContextBanner({required this.childLabel, required this.accent});
 
   final String childLabel;
   final Color accent;
@@ -959,11 +971,7 @@ class _FamilyContextBanner extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ViroIcon(
-              ViroIcons.roleParent,
-              size: 20,
-              color: readableAccent,
-            ),
+            ViroIcon(ViroIcons.roleParent, size: 20, color: readableAccent),
             const SizedBox(width: ViroSpacing.sm),
             Expanded(
               child: Column(
@@ -994,10 +1002,7 @@ class _FamilyContextBanner extends StatelessWidget {
 }
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({
-    required this.title,
-    this.accentColor,
-  });
+  const _SectionTitle({required this.title, this.accentColor});
 
   final String title;
   final Color? accentColor;
@@ -1006,9 +1011,9 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.viroPalette;
     final titleStyle = Theme.of(context).textTheme.titleMedium?.copyWith(
-          color: palette.brandText,
-          fontWeight: FontWeight.w700,
-        );
+      color: palette.brandText,
+      fontWeight: FontWeight.w700,
+    );
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -1033,9 +1038,7 @@ class _SectionTitle extends StatelessWidget {
               ),
             ),
           ],
-          Expanded(
-            child: Text(title, style: titleStyle),
-          ),
+          Expanded(child: Text(title, style: titleStyle)),
         ],
       ),
     );

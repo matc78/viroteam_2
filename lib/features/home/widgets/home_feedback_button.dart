@@ -27,7 +27,7 @@ class HomeFeedbackButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!FeatureFlags.trainingToolsLive) return const SizedBox.shrink();
+    if (!FeatureFlags.trainingFeedbackLive) return const SizedBox.shrink();
     final visible =
         ref.watch(trainingFeedbackCanManageProvider) ||
         ref.watch(trainingFeedbackCanReceiveProvider);

@@ -30,6 +30,7 @@ part 'app_copy_app_update.dart';
 part 'app_copy_permissions.dart';
 part 'app_copy_standings.dart';
 part 'app_copy_training.dart';
+part 'app_copy_attendance.dart';
 
 /// Point d’entrée des libellés UI.
 abstract final class AppCopy {
@@ -55,4 +56,5 @@ abstract final class AppCopy {
   static const permissions = AppCopyPermissions();
   static const standings = AppCopyStandings();
   static const training = AppCopyTraining();
+  static const attendance = AppCopyAttendance();
 }

@@ -37,6 +37,7 @@ class ClubManagementList extends StatelessWidget {
     this.pendingCount = 0,
     required this.onMembers,
     required this.onActivity,
+    required this.onAttendance,
     required this.onFees,
     required this.onAppearance,
     required this.onLocations,
@@ -50,6 +51,7 @@ class ClubManagementList extends StatelessWidget {
   final int pendingCount;
   final VoidCallback onMembers;
   final VoidCallback onActivity;
+  final VoidCallback onAttendance;
   final VoidCallback onFees;
   final VoidCallback onAppearance;
   final VoidCallback onLocations;
@@ -62,59 +64,66 @@ class ClubManagementList extends StatelessWidget {
 
     final people = [
       if (access.canOpenMembers)
-      _ManagementEntry(
-        title: AppCopy.club.actionManageMembers,
-        subtitle: pendingCount > 0
-            ? AppCopy.club.membersWithPending(memberCount, pendingCount)
-            : AppCopy.club.membersCount(memberCount),
-        icon: ViroIcons.groups,
-        onTap: onMembers,
-      ),
+        _ManagementEntry(
+          title: AppCopy.club.actionManageMembers,
+          subtitle: pendingCount > 0
+              ? AppCopy.club.membersWithPending(memberCount, pendingCount)
+              : AppCopy.club.membersCount(memberCount),
+          icon: ViroIcons.groups,
+          onTap: onMembers,
+        ),
       if (access.can(ClubPermission.viewActivity))
-      _ManagementEntry(
-        title: AppCopy.club.actionRecentActivity,
-        subtitle: AppCopy.club.activitySubtitle,
-        icon: ViroIcons.clock,
-        onTap: onActivity,
-      ),
+        _ManagementEntry(
+          title: AppCopy.club.actionRecentActivity,
+          subtitle: AppCopy.club.activitySubtitle,
+          icon: ViroIcons.clock,
+          onTap: onActivity,
+        ),
+      if (access.canViewAttendance)
+        _ManagementEntry(
+          title: AppCopy.attendance.entryTitle,
+          subtitle: AppCopy.attendance.entrySubtitle,
+          icon: ViroIcons.attendance,
+          onTap: onAttendance,
+        ),
     ];
 
     final club = [
       if (access.can(ClubPermission.viewFees))
-      _ManagementEntry(
-        title: AppCopy.club.actionFeesTracking,
-        subtitle: AppCopy.club.feesTrackingSubtitle,
-        icon: ViroIcons.payments,
-        onTap: onFees,
-      ),
+        _ManagementEntry(
+          title: AppCopy.club.actionFeesTracking,
+          subtitle: AppCopy.club.feesTrackingSubtitle,
+          icon: ViroIcons.payments,
+          onTap: onFees,
+        ),
       if (canEditClub)
-      _ManagementEntry(
-        title: AppCopy.club.actionAppearance,
-        subtitle: AppCopy.club.appearanceSubtitle,
-        icon: ViroIcons.image,
-        onTap: onAppearance,
-      ),
+        _ManagementEntry(
+          title: AppCopy.club.actionAppearance,
+          subtitle: AppCopy.club.appearanceSubtitle,
+          icon: ViroIcons.image,
+          onTap: onAppearance,
+        ),
       if (canEditClub)
-      _ManagementEntry(
-        title: AppCopy.club.actionLocations,
-        subtitle: AppCopy.club.locationsSubtitle,
-        icon: ViroIcons.place,
-        onTap: onLocations,
-      ),
+        _ManagementEntry(
+          title: AppCopy.club.actionLocations,
+          subtitle: AppCopy.club.locationsSubtitle,
+          icon: ViroIcons.place,
+          onTap: onLocations,
+        ),
       if (access.can(ClubPermission.manageEquipment))
-      _ManagementEntry(
-        title: AppCopy.club.actionEquipment,
-        subtitle: AppCopy.club.equipmentSubtitle,
-        icon: ViroIcons.ball,
-        onTap: onEquipment,
-      ),
+        _ManagementEntry(
+          title: AppCopy.club.actionEquipment,
+          subtitle: AppCopy.club.equipmentSubtitle,
+          icon: ViroIcons.ball,
+          onTap: onEquipment,
+        ),
       if (canEditClub)
-      _ManagementEntry(
-        title: AppCopy.club.actionSettings,
-        subtitle: AppCopy.club.settingsSubtitle,
-        icon: ViroIcons.settings,
-        onTap: onSettings,
-      ),
+        _ManagementEntry(
+          title: AppCopy.club.actionSettings,
+          subtitle: AppCopy.club.settingsSubtitle,
+          icon: ViroIcons.settings,
+          onTap: onSettings,
+        ),
     ];
 
     return Padding(
@@ -168,10 +177,10 @@ class _ManagementGroup extends StatelessWidget {
           child: Text(
             title.toUpperCase(),
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: palette.textMuted,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.6,
-                ),
+              color: palette.textMuted,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.6,
+            ),
           ),
         ),
         for (final entry in entries)

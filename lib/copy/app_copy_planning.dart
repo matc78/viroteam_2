@@ -149,6 +149,8 @@ final class AppCopyPlanning {
   String get notifSendFailed => 'Envoi impossible, réessaie';
   String responsesCount(int count) => 'Réponses ($count)';
   String get sendNotification => 'Envoyer une notification';
+  /// Libellé compact (grille d’actions du détail événement).
+  String get sendNotificationShort => 'Notifier';
   String get sending => 'Envoi…';
 
   String get editEventAction => 'Modifier l’événement';

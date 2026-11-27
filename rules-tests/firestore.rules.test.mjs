@@ -2519,6 +2519,46 @@ test("entraînement : chaque coach écrit sa préparation, ses collègues la lis
   );
 });
 
+test("entraînement : bibliothèque, un coach copie la préparation d'une séance passée dans une séance à venir", async () => {
+  await seedTraining();
+  const upcoming = `clubs/${CLUB}/events/evTrainNext`;
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, upcoming), {
+      title: "Entraînement",
+      type: "training",
+      teamIds: ["teamA"],
+      teamMemberIds: [PLAYER.uid],
+      dateId: "20261204",
+    });
+    // Préparation passée d'un collègue (source de la bibliothèque).
+    await setDoc(doc(db, `${TRAINING}/trainingPlans/${COACH2.uid}`), plan({ drillOrder: ["d1"] }));
+    await setDoc(doc(db, `${TRAINING}/trainingPlans/${COACH2.uid}/drills/d1`), {
+      title: "Service",
+      boards: [],
+    });
+  });
+  // Lecture de la source, puis écriture des copies dans ma préparation (un lot).
+  await assertSucceeds(getDocs(collection(as(COACH), `${TRAINING}/trainingPlans`)));
+  await assertSucceeds(
+    getDocs(collection(as(COACH), `${TRAINING}/trainingPlans/${COACH2.uid}/drills`)),
+  );
+  const coachDb = as(COACH);
+  const batch = writeBatch(coachDb);
+  batch.set(doc(coachDb, `${upcoming}/trainingPlans/${COACH.uid}/drills/copy1`), {
+    title: "Service",
+    boards: [],
+  });
+  batch.set(
+    doc(coachDb, `${upcoming}/trainingPlans/${COACH.uid}`),
+    plan({ drillOrder: ["copy1"] }),
+    { merge: true },
+  );
+  await assertSucceeds(batch.commit());
+  // Le coach d'une autre équipe ne lit pas la bibliothèque de l'équipe A.
+  await assertFails(getDocs(collection(as(COACH_B), `${TRAINING}/trainingPlans`)));
+});
+
 test("entraînement : l'admin lit la préparation sans l'écrire, joueur et coach d'une autre équipe refusés", async () => {
   await seedTraining();
   const mine = `${TRAINING}/trainingPlans/${COACH.uid}`;

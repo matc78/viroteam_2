@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:viro_team_v2/config/routes.dart';
+import 'package:viro_team_v2/config/viro_haptics.dart';
 import 'package:viro_team_v2/config/viro_icons.dart';
 import 'package:viro_team_v2/config/viro_palette.dart';
 import 'package:viro_team_v2/config/viro_spacing.dart';
@@ -155,6 +156,33 @@ class _TrainingPrepScreenState extends ConsumerState<TrainingPrepScreen> {
     }
   }
 
+  /// Copie les exercices d'un collègue ([drills]) à la suite des miens
+  /// ([myDrills]) ; ses notes ne sont pas reprises (comme sur le portail).
+  Future<void> _copyColleagueDrills(
+    List<TrainingDrill> drills,
+    List<TrainingDrill> myDrills,
+  ) async {
+    final planContext = _context;
+    if (planContext == null) return;
+    try {
+      final copies = await _service.copyDrillsInto(
+        clubId: widget.clubId,
+        eventId: widget.eventId,
+        coachUid: planContext.uid,
+        coachName: planContext.coachName,
+        teamIds: planContext.teamIds,
+        existingOrder: [for (final drill in myDrills) drill.id],
+        drills: drills,
+      );
+      if (!mounted) return;
+      ViroHaptics.success();
+      ViroSnackBar.show(context, AppCopy.training.drillsCopied(copies.length));
+      setState(() => _selectedCoachUid = planContext.uid);
+    } catch (_) {
+      if (mounted) ViroSnackBar.show(context, AppCopy.training.saveFailed);
+    }
+  }
+
   void _openDrill(String coachUid, String drillId) => context.push(
     AppRoutes.clubTrainingDrillPath(
       widget.clubId,
@@ -199,8 +227,16 @@ class _TrainingPrepScreenState extends ConsumerState<TrainingPrepScreen> {
           );
           final plans =
               ref.watch(trainingPlansProvider(_eventRef)).value ?? const [];
+          // Collègues ayant préparé quelque chose (exercices ou notes).
           final colleagues =
-              plans.where((plan) => plan.coachUid != uid).toList()
+              plans
+                  .where(
+                    (plan) =>
+                        plan.coachUid != uid &&
+                        (plan.drillOrder.isNotEmpty ||
+                            plan.notes.trim().isNotEmpty),
+                  )
+                  .toList()
                 ..sort((a, b) => a.coachName.compareTo(b.coachName));
           final coachUids = [
             if (isCoach) uid,
@@ -240,7 +276,27 @@ class _TrainingPrepScreenState extends ConsumerState<TrainingPrepScreen> {
               ref.watch(trainingPlansProvider(_eventRef)).hasValue) {
             _notesController.text = plan.notes;
             _notesLoaded = true;
+          } else if (mine &&
+              _notesLoaded &&
+              _notesController.text.isEmpty &&
+              plan.notes.isNotEmpty &&
+              !(_notesTimer?.isActive ?? false)) {
+            // Notes reprises depuis la bibliothèque alors que les miennes
+            // étaient vides.
+            _notesController.text = plan.notes;
           }
+          // Ma préparation (ordre courant) pour y copier des exercices.
+          final myDrills = isCoach
+              ? ref
+                    .watch(
+                      trainingOrderedDrillsProvider((
+                        clubId: widget.clubId,
+                        eventId: widget.eventId,
+                        coachUid: uid,
+                      )),
+                    )
+                    .value
+              : null;
           final drillsAsync = ref.watch(
             trainingOrderedDrillsProvider((
               clubId: widget.clubId,
@@ -284,34 +340,50 @@ class _TrainingPrepScreenState extends ConsumerState<TrainingPrepScreen> {
             ViroSpacing.lg,
           );
           if (!mine) {
+            final canCopy = isCoach && drills.isNotEmpty && myDrills != null;
             return ListView.builder(
               padding: padding,
-              itemCount: drills.length + 1,
-              itemBuilder: (context, index) => index == 0
-                  ? header
-                  : TrainingDrillListTile(
-                      drill: drills[index - 1],
-                      position: index,
-                      onTap: () => _openDrill(selected, drills[index - 1].id),
-                    ),
+              itemCount: drills.length + (canCopy ? 2 : 1),
+              itemBuilder: (context, index) {
+                if (index == 0) return header;
+                if (index > drills.length) {
+                  return _PrepFooterButton(
+                    icon: ViroIcons.copy,
+                    label: AppCopy.training.copyToMyPrep,
+                    onPressed: () => _copyColleagueDrills(drills, myDrills!),
+                  );
+                }
+                return TrainingDrillListTile(
+                  drill: drills[index - 1],
+                  position: index,
+                  onTap: () => _openDrill(selected, drills[index - 1].id),
+                );
+              },
             );
           }
           return ReorderableListView.builder(
             padding: padding,
             buildDefaultDragHandles: false,
             header: header,
-            footer: Padding(
-              padding: const EdgeInsets.only(top: ViroSpacing.xs),
-              child: OutlinedButton.icon(
-                onPressed: () => _addDrill(drills),
-                icon: ViroIcon(ViroIcons.add, size: 18),
-                label: Text(AppCopy.training.addDrill),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(
-                    ViroSpacing.buttonHeightMedium,
+            footer: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _PrepFooterButton(
+                  icon: ViroIcons.add,
+                  label: AppCopy.training.addDrill,
+                  onPressed: () => _addDrill(drills),
+                ),
+                _PrepFooterButton(
+                  icon: ViroIcons.library,
+                  label: AppCopy.training.libraryAction,
+                  onPressed: () => context.push(
+                    AppRoutes.clubTrainingLibraryPath(
+                      widget.clubId,
+                      widget.eventId,
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
             itemCount: drills.length,
             onReorderItem: (oldIndex, newIndex) =>
@@ -342,6 +414,32 @@ class _TrainingPrepScreenState extends ConsumerState<TrainingPrepScreen> {
       ),
     );
   }
+}
+
+/// Bouton pleine largeur du pied de la préparation.
+class _PrepFooterButton extends StatelessWidget {
+  const _PrepFooterButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: ViroSpacing.xs),
+    child: OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: ViroIcon(icon, size: 18),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(ViroSpacing.buttonHeightMedium),
+      ),
+    ),
+  );
 }
 
 /// Infos nécessaires pour écrire ma partie (règles : `teamIds` de la séance).

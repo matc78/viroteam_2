@@ -8,6 +8,8 @@ final class AppCopyTraining {
 
   // ——— Fiche d'événement ———
   String get prepareAction => 'Préparer l’entraînement';
+  /// Libellé compact (grille d’actions du détail événement).
+  String get prepareActionShort => 'Préparer';
   String get myPrepAction => 'Ma préparation';
   String get feedbackAction => 'Faire le retour';
   String get feedbackSentAction => 'Retour envoyé · modifier';
@@ -196,6 +198,35 @@ final class AppCopyTraining {
   String get reorderHint => 'Appui long pour réordonner';
   String get saveFailed => 'Pas enregistré, vérifie ta connexion.';
   String get saved => 'Enregistré';
+  String get copyToMyPrep => 'Copier dans ma préparation';
+  String drillsCopied(int count) => count > 1
+      ? '$count exercices copiés dans ta préparation.'
+      : 'Exercice copié dans ta préparation.';
+
+  // ——— Bibliothèque ———
+  String get libraryAction => 'Bibliothèque';
+  String get libraryTitle => 'Bibliothèque';
+  String get libraryIntro => 'Séances passées de tes équipes, sur 6 mois.';
+  String get libraryTabSessions => 'Séances';
+  String get libraryTabDrills => 'Exercices';
+  String get librarySearchHint => 'Rechercher un exercice, une séance…';
+  String get libraryLoadError => 'Impossible de charger la bibliothèque.';
+  String get libraryEmptySessions =>
+      'Aucune séance préparée pour l’instant. Le banc se remplira vite !';
+  String get libraryEmptyDrills => 'Aucun exercice pour l’instant.';
+  String get libraryNoMatch => 'Rien ne correspond à ta recherche.';
+  String get libraryOpenSession => 'Consulter';
+  String get libraryDuplicate => 'Dupliquer dans cette séance';
+  String get libraryDuplicated => 'Dupliquée';
+  String get libraryAddDrill => 'Ajouter à la séance';
+  String get libraryDrillAdded => 'Ajouté';
+  String get libraryUntitledDrill => 'Exercice';
+  String get libraryDefaultTeams => 'Entraînement';
+  String libraryCoach(String name) => name.trim().isEmpty ? 'Coach' : name;
+  String librarySessionMeta(String coach, int drills, int minutes) {
+    final count = drills > 1 ? '$drills exercices' : '$drills exercice';
+    return minutes > 0 ? '$coach · $count · $minutes min' : '$coach · $count';
+  }
 
   // ——— Exercice ———
   String get drillTitle => 'Exercice';

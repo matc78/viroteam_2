@@ -12,6 +12,7 @@ import 'package:viro_team_v2/models/training_plan.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
 import 'package:viro_team_v2/services/event/event_date_helpers.dart';
 import 'package:viro_team_v2/services/training/training_feedback_inbox.dart';
+import 'package:viro_team_v2/services/training/training_library.dart';
 import 'package:viro_team_v2/utils/calendar_days.dart';
 
 /// Entraînement d'un club.
@@ -548,6 +549,79 @@ final trainingCoachPlanProvider = Provider.autoDispose
         (plan) => plan.coachUid == target.coachUid,
         orElse: () => TrainingPlan(coachUid: target.coachUid),
       );
+    });
+
+/// Bibliothèque de la séance [TrainingEventRef] : préparations (les miennes et
+/// celles des collègues) des entraînements passés de mes équipes sur
+/// [trainingLibraryPastDays] jours, hors séance en cours. Lue une fois.
+final trainingLibraryProvider = FutureProvider.autoDispose
+    .family<List<TrainingLibrarySession>, TrainingEventRef>((
+      ref,
+      target,
+    ) async {
+      final teamIds = ref.watch(clubAccessProvider(target.clubId)).coachTeamIds;
+      if (ref.watch(trainingAuthUidProvider) == null || teamIds.isEmpty) {
+        return const [];
+      }
+      final service = ref.watch(trainingPlanServiceProvider);
+      final events = await service.loadPastTrainings(
+        clubId: target.clubId,
+        teamIds: teamIds,
+        since: addCalendarDays(
+          EventDateHelpers.startOfToday(),
+          -trainingLibraryPastDays,
+        ),
+      );
+      return service.loadLibrarySessions(
+        clubId: target.clubId,
+        events: events.where((e) => e.id != target.eventId).toList(),
+      );
+    });
+
+/// Recherche dans la bibliothèque d'une séance.
+typedef TrainingLibraryQuery = ({String clubId, String eventId, String query});
+
+/// Vue filtrée de la bibliothèque : séances (avec le libellé de leurs
+/// équipes) et exercices sans doublon correspondant à la recherche.
+typedef TrainingLibraryView = ({
+  List<({TrainingLibrarySession session, String teamsLabel})> sessions,
+  List<TrainingLibraryDrillRow> drills,
+});
+
+/// Bibliothèque filtrée sur [TrainingLibraryQuery.query] (sans accents).
+final trainingLibraryViewProvider = Provider.autoDispose
+    .family<AsyncValue<TrainingLibraryView>, TrainingLibraryQuery>((
+      ref,
+      target,
+    ) {
+      final teams =
+          ref.watch(clubTeamsProvider(target.clubId)).value ?? const [];
+      final teamNames = {for (final team in teams) team.id: team.name};
+      return ref
+          .watch(
+            trainingLibraryProvider((
+              clubId: target.clubId,
+              eventId: target.eventId,
+            )),
+          )
+          .whenData((sessions) {
+            return (
+              sessions: [
+                for (final session in filterLibrarySessions(
+                  sessions,
+                  target.query,
+                ))
+                  (
+                    session: session,
+                    teamsLabel: [
+                      for (final teamId in session.event.teamIds)
+                        ?teamNames[teamId],
+                    ].join(', '),
+                  ),
+              ],
+              drills: libraryDrillRows(sessions, target.query),
+            );
+          });
     });
 
 /// Exercices ordonnés de la préparation d'un coach.

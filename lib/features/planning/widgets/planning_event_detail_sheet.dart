@@ -174,9 +174,12 @@ class _PlanningEventDetailSheetState
 
   /// Outils d'entraînement actifs sur cet événement (entraînement non annulé).
   bool get _isTrainingWithTools =>
-      FeatureFlags.trainingToolsLive &&
+      (FeatureFlags.trainingPrepLive || FeatureFlags.trainingFeedbackLive) &&
       _event.type == EventTypes.training &&
       !_event.canceled;
+
+  /// Retours de séance (dormants tant que le flag est coupé).
+  bool get _feedbackLive => FeatureFlags.trainingFeedbackLive;
 
   /// Coach d'une équipe de la séance : préparation et retour.
   bool get _canCoachTraining =>
@@ -188,11 +191,45 @@ class _PlanningEventDetailSheetState
       _isTrainingWithTools &&
       _access.canReviewTraining(_event.teamIds, allTeams: _event.allTeams);
 
-  /// Boutons des outils d'entraînement : préparer (séance à venir ou du
-  /// jour) ; dès le jour J, faire le retour, consulter les retours envoyés,
-  /// ou lire celui reçu par [rsvpMemberId] (soi ou enfant).
-  List<Widget> _buildTrainingActions({String? rsvpMemberId}) {
-    if (!_isTrainingWithTools) return const [];
+  /// Colonne gauche : Modifier / Convoqués.
+  List<_EventDetailAction> _staffActionsLeft() {
+    return [
+      if (_canEditEvent)
+        _EventDetailAction(
+          icon: ViroIcons.edit,
+          label: AppCopy.planning.editEventActionShort,
+          onPressed: _openEditEvent,
+        ),
+      if (_canManageConvocations)
+        _EventDetailAction(
+          icon: ViroIcons.users,
+          label: AppCopy.planning.manageConvocationsShort,
+          onPressed: _openConvocations,
+        ),
+    ];
+  }
+
+  /// Colonne droite : Notifier / prépa / retours. [rsvpMemberId] pour le
+  /// retour reçu (soi ou enfant).
+  List<_EventDetailAction> _staffActionsRight({String? rsvpMemberId}) {
+    final actions = <_EventDetailAction>[];
+
+    if (_canManageAudience) {
+      actions.add(
+        _EventDetailAction(
+          icon: ViroIcons.bell,
+          label: _sendingPush
+              ? AppCopy.planning.sending
+              : AppCopy.planning.sendNotificationShort,
+          onPressed: _sendingPush ? null : _sendEventPush,
+          primary: true,
+          busy: _sendingPush,
+        ),
+      );
+    }
+
+    if (!_isTrainingWithTools) return actions;
+
     final uid = ref.watch(trainingAuthUidProvider);
     final event = _event;
     final started = _isDayOrPast;
@@ -202,18 +239,7 @@ class _PlanningEventDetailSheetState
         EventDateHelpers.sameCalendarDay(event.date, DateTime.now());
     final anyFeedbackSent = event.trainingFeedbackSentBy.isNotEmpty;
 
-    Widget button(IconData icon, String label, String location) =>
-        OutlinedButton.icon(
-          onPressed: () => _openTrainingScreen(location),
-          icon: ViroIcon(icon, size: 18),
-          label: Text(label),
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(ViroSpacing.buttonHeightMedium),
-          ),
-        );
-
-    final actions = <Widget>[];
-    if (_canCoachTraining && preparable) {
+    if (FeatureFlags.trainingPrepLive && _canCoachTraining && preparable) {
       final plans =
           ref
               .watch(
@@ -226,59 +252,108 @@ class _PlanningEventDetailSheetState
           const [];
       final hasPlan = plans.any((plan) => plan.coachUid == uid);
       actions.add(
-        button(
-          ViroIcons.trainingPrep,
-          hasPlan
+        _EventDetailAction(
+          icon: ViroIcons.trainingPrep,
+          label: hasPlan
               ? AppCopy.training.myPrepAction
-              : AppCopy.training.prepareAction,
-          AppRoutes.clubTrainingPrepPath(widget.clubId, event.id),
+              : AppCopy.training.prepareActionShort,
+          onPressed: () => _openTrainingScreen(
+            AppRoutes.clubTrainingPrepPath(widget.clubId, event.id),
+          ),
         ),
       );
     }
-    if (_canCoachTraining && started) {
+    if (_feedbackLive && _canCoachTraining && started) {
       final sent = uid != null && event.trainingFeedbackSentByCoach(uid);
       actions.add(
-        button(
-          sent ? ViroIcons.checkCircle : ViroIcons.feedback,
-          sent
+        _EventDetailAction(
+          icon: sent ? ViroIcons.checkCircle : ViroIcons.feedback,
+          label: sent
               ? AppCopy.training.feedbackSentAction
               : AppCopy.training.feedbackAction,
-          AppRoutes.clubTrainingFeedbackPath(widget.clubId, event.id),
+          onPressed: () => _openTrainingScreen(
+            AppRoutes.clubTrainingFeedbackPath(widget.clubId, event.id),
+          ),
         ),
       );
     }
-    if (_canReviewTraining && started && anyFeedbackSent) {
+    if (_feedbackLive && _canReviewTraining && started && anyFeedbackSent) {
       actions.add(
-        button(
-          ViroIcons.eye,
-          AppCopy.training.reviewAction,
-          AppRoutes.clubTrainingFeedbackReviewPath(widget.clubId, event.id),
+        _EventDetailAction(
+          icon: ViroIcons.eye,
+          label: AppCopy.training.reviewAction,
+          onPressed: () => _openTrainingScreen(
+            AppRoutes.clubTrainingFeedbackReviewPath(
+              widget.clubId,
+              event.id,
+            ),
+          ),
         ),
       );
     }
-    if (!_canCoachTraining &&
+    if (_feedbackLive &&
+        !_canCoachTraining &&
         started &&
         anyFeedbackSent &&
         rsvpMemberId != null &&
         event.isInvitedAsPlayer(rsvpMemberId)) {
       actions.add(
-        button(
-          ViroIcons.feedback,
-          AppCopy.training.reviewReceivedAction,
-          AppRoutes.clubTrainingFeedbackReceivedPath(
-            widget.clubId,
-            event.id,
-            memberId: rsvpMemberId,
+        _EventDetailAction(
+          icon: ViroIcons.feedback,
+          label: AppCopy.training.reviewReceivedAction,
+          onPressed: () => _openTrainingScreen(
+            AppRoutes.clubTrainingFeedbackReceivedPath(
+              widget.clubId,
+              event.id,
+              memberId: rsvpMemberId,
+            ),
           ),
         ),
       );
     }
-    return [
-      for (final action in actions) ...[
-        const SizedBox(height: ViroSpacing.sm),
-        action,
+
+    return actions;
+  }
+
+  /// Colonne verticale d'actions, espacées de [ViroSpacing.xs].
+  Widget _staffActionColumn(List<_EventDetailAction> actions) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var index = 0; index < actions.length; index++) ...[
+          if (index > 0) const SizedBox(height: ViroSpacing.xs),
+          _EventDetailActionButton(action: actions[index]),
+        ],
       ],
-    ];
+    );
+  }
+
+  /// Grille 2 colonnes : gauche Modifier / Convoqués, droite Notifier / prépa.
+  Widget _buildStaffActionsGrid({String? rsvpMemberId}) {
+    final left = _staffActionsLeft();
+    final right = _staffActionsRight(rsvpMemberId: rsvpMemberId);
+    if (left.isEmpty && right.isEmpty) return const SizedBox.shrink();
+
+    final Widget body;
+    if (left.isEmpty) {
+      body = _staffActionColumn(right);
+    } else if (right.isEmpty) {
+      body = _staffActionColumn(left);
+    } else {
+      body = Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: _staffActionColumn(left)),
+          const SizedBox(width: ViroSpacing.sm),
+          Expanded(child: _staffActionColumn(right)),
+        ],
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: ViroSpacing.sm),
+      child: body,
+    );
   }
 
   /// Ouvre [location] (écran d'entraînement) en fermant la feuille.
@@ -878,74 +953,7 @@ class _PlanningEventDetailSheetState
                     ),
                   ],
                 ),
-              if (_canManageAudience) ...[
-                const SizedBox(height: ViroSpacing.sm),
-                FilledButton.icon(
-                  onPressed: _sendingPush ? null : _sendEventPush,
-                  icon: _sendingPush
-                      ? SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: palette.onAccent,
-                          ),
-                        )
-                      : ViroIcon(ViroIcons.bell, size: 18),
-                  label: Text(
-                    _sendingPush ? AppCopy.planning.sending : AppCopy.planning.sendNotification,
-                  ),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(
-                      ViroSpacing.buttonHeightMedium,
-                    ),
-                  ),
-                ),
-              ],
-              ..._buildTrainingActions(rsvpMemberId: rsvpTarget?.memberId),
-              if (_canEditEvent || _canManageConvocations) ...[
-                const SizedBox(height: ViroSpacing.sm),
-                Row(
-                  children: [
-                    if (_canEditEvent)
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _openEditEvent,
-                          icon: ViroIcon(ViroIcons.edit, size: 18),
-                          label: Text(AppCopy.planning.editEventActionShort),
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size.fromHeight(
-                              ViroSpacing.buttonHeightMedium,
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: ViroSpacing.sm,
-                            ),
-                          ),
-                        ),
-                      ),
-                    if (_canEditEvent && _canManageConvocations)
-                      const SizedBox(width: ViroSpacing.sm),
-                    if (_canManageConvocations)
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _openConvocations,
-                          icon: ViroIcon(ViroIcons.users, size: 18),
-                          label: Text(
-                            AppCopy.planning.manageConvocationsShort,
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size.fromHeight(
-                              ViroSpacing.buttonHeightMedium,
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: ViroSpacing.sm,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
+              _buildStaffActionsGrid(rsvpMemberId: rsvpTarget?.memberId),
               const SizedBox(height: ViroSpacing.md),
               _buildMembersList(theme),
               if (_canManageEvent) ...[
@@ -1236,6 +1244,74 @@ class _AwayAddressButton extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Action compacte de la grille du détail événement (icône + libellé court).
+class _EventDetailAction {
+  const _EventDetailAction({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.primary = false,
+    this.busy = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+  final bool primary;
+  final bool busy;
+}
+
+/// Bouton d'une case de la grille d'actions du détail événement.
+class _EventDetailActionButton extends StatelessWidget {
+  const _EventDetailActionButton({required this.action});
+
+  final _EventDetailAction action;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.viroPalette;
+    final icon = action.busy
+        ? SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: action.primary ? palette.onAccent : null,
+            ),
+          )
+        : ViroIcon(action.icon, size: 16);
+    final style = ButtonStyle(
+      minimumSize: const WidgetStatePropertyAll(
+        Size(0, ViroSpacing.minTouchTarget),
+      ),
+      padding: const WidgetStatePropertyAll(
+        EdgeInsets.symmetric(horizontal: ViroSpacing.sm),
+      ),
+      visualDensity: VisualDensity.compact,
+      textStyle: WidgetStatePropertyAll(
+        Theme.of(context).textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+      ),
+    );
+
+    if (action.primary) {
+      return FilledButton.icon(
+        onPressed: action.onPressed,
+        icon: icon,
+        label: Text(action.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+        style: style,
+      );
+    }
+    return OutlinedButton.icon(
+      onPressed: action.onPressed,
+      icon: icon,
+      label: Text(action.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+      style: style,
     );
   }
 }

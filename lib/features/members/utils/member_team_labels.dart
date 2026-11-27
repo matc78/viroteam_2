@@ -1,6 +1,7 @@
 import 'package:viro_team_v2/copy/app_copy.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/models/club_team.dart';
+import 'package:viro_team_v2/widgets/common/viro_role_badge.dart';
 
 /// Noms des équipes que [member] entraîne (`coachTeamIds`), triés.
 List<String> resolveCoachedTeamNames(ClubMember member, List<ClubTeam> teams) {
@@ -14,6 +15,32 @@ List<String> resolveCoachedTeamNames(ClubMember member, List<ClubTeam> teams) {
   return names;
 }
 
+/// Badges roster de [memberId] dans [team] (entraîneur, joueur / sparring).
+/// Vide hors roster. Un id dans les deux listes reçoit les deux badges.
+List<ViroRole> resolveMemberTeamRoles(ClubTeam team, String memberId) {
+  final roles = <ViroRole>[];
+  if (team.coachIds.contains(memberId)) roles.add(ViroRole.coach);
+  if (team.playerIds.contains(memberId)) {
+    roles.add(
+      team.isSparring(memberId) ? ViroRole.sparring : ViroRole.player,
+    );
+  }
+  return roles;
+}
+
+/// Rôle roster de [memberId] dans [team] (ex. « joueur », « entraîneur »,
+/// « entraîneur + joueur », « sparring »). Vide hors roster.
+String resolveMemberTeamRoleLabel(ClubTeam team, String memberId) {
+  return [
+    for (final role in resolveMemberTeamRoles(team, memberId))
+      switch (role) {
+        ViroRole.coach => AppCopy.members.teamRoleCoach,
+        ViroRole.sparring => AppCopy.members.teamRoleSparring,
+        _ => AppCopy.members.teamRolePlayer,
+      },
+  ].join(' + ');
+}
+
 /// Libellés équipes avec rôle roster (ex. « M18 filles (joueur) »,
 /// « Seniors (sparring) »).
 List<String> resolveMemberTeamLabels(ClubMember member, List<ClubTeam> teams) {
@@ -25,21 +52,8 @@ List<String> resolveMemberTeamLabels(ClubMember member, List<ClubTeam> teams) {
     final inDoc = member.teamIds.contains(team.id);
     if (!isPlayer && !isCoach && !inDoc) continue;
 
-    final roles = <String>[];
-    if (isCoach) roles.add(AppCopy.members.teamRoleCoach);
-    if (isPlayer) {
-      roles.add(
-        team.isSparring(member.memberId)
-            ? AppCopy.members.teamRoleSparring
-            : AppCopy.members.teamRolePlayer,
-      );
-    }
-
-    if (roles.isEmpty) {
-      labels.add(team.name);
-    } else {
-      labels.add('${team.name} (${roles.join(' + ')})');
-    }
+    final role = resolveMemberTeamRoleLabel(team, member.memberId);
+    labels.add(role.isEmpty ? team.name : '${team.name} ($role)');
   }
 
   labels.sort(

@@ -339,13 +339,6 @@ class EventService {
   Future<ClubEvent?> getHighlightEventForClub(String clubId) =>
       _day.getHighlightEventForClub(clubId);
 
-  /// Taux de réponses positives (RSVP yes) sur les 30 derniers jours.
-  Future<double?> computeAttendanceRate({
-    required String clubId,
-    required String authUid,
-  }) =>
-      _rsvp.computeAttendanceRate(clubId: clubId, authUid: authUid);
-
   /// Retire ([excludeIds]) / réintègre ([reintegrateIds]) des joueurs convoqués
   /// via la callable `updateEventConvocations`. [following] : aussi les
   /// occurrences suivantes de la série. Retourne le nombre d'événements modifiés.

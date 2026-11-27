@@ -34,7 +34,8 @@ class TrainingPlan {
       coachUid: doc.id,
       coachName: data[FirestoreFields.coachName] as String? ?? '',
       notes: data[FirestoreFields.notes] as String? ?? '',
-      drillOrder: (data[FirestoreFields.drillOrder] as List<dynamic>?)
+      drillOrder:
+          (data[FirestoreFields.drillOrder] as List<dynamic>?)
               ?.whereType<String>()
               .toList() ??
           const [],
@@ -111,10 +112,7 @@ class TrainingDrill {
   static List<WhiteboardData> boardsFromData(Map<String, dynamic> data) {
     final rawBoards = data[FirestoreFields.boards];
     if (rawBoards is List && rawBoards.isNotEmpty) {
-      return rawBoards
-          .map(WhiteboardData.fromMap)
-          .take(maxBoards)
-          .toList();
+      return rawBoards.map(WhiteboardData.fromMap).take(maxBoards).toList();
     }
     final legacy = data[FirestoreFields.board];
     if (legacy == null) return const [];
@@ -128,26 +126,35 @@ class TrainingDrill {
     bool clearDuration = false,
     String? instructions,
     List<WhiteboardData>? boards,
-  }) =>
-      TrainingDrill(
-        id: id,
-        title: title ?? this.title,
-        durationMin: clearDuration ? null : (durationMin ?? this.durationMin),
-        instructions: instructions ?? this.instructions,
-        boards: boards ?? this.boards,
-      );
+  }) => TrainingDrill(
+    id: id,
+    title: title ?? this.title,
+    durationMin: clearDuration ? null : (durationMin ?? this.durationMin),
+    instructions: instructions ?? this.instructions,
+    boards: boards ?? this.boards,
+  );
+
+  /// Copie de l'exercice sous un nouvel [id] (bibliothèque, préparation d'un
+  /// collègue) ; les schémas sont immuables, partagés sans risque.
+  TrainingDrill copyAsNew(String id) => TrainingDrill(
+    id: id,
+    title: title,
+    durationMin: durationMin,
+    instructions: instructions,
+    boards: boards.take(maxBoards).toList(),
+  );
 
   /// Données Firestore de l'exercice (`boards` ; le `set` sans merge
   /// remplace le doc et fait disparaître l'ancien champ `board`).
   Map<String, dynamic> toFirestore() => {
-        FirestoreFields.title: title.trim(),
-        FirestoreFields.durationMin: durationMin,
-        FirestoreFields.instructions: instructions,
-        FirestoreFields.boards: [
-          for (final board in boards.take(maxBoards)) board.toMap(),
-        ],
-        FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
-      };
+    FirestoreFields.title: title.trim(),
+    FirestoreFields.durationMin: durationMin,
+    FirestoreFields.instructions: instructions,
+    FirestoreFields.boards: [
+      for (final board in boards.take(maxBoards)) board.toMap(),
+    ],
+    FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+  };
 }
 
 /// Total des durées prévues de [drills] (minutes, exercices sans durée ignorés).

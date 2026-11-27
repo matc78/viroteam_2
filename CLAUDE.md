@@ -57,7 +57,7 @@ C'est le point le plus structurant du repo :
 
 ### Logique sensible côté serveur
 
-Les règles Firestore restent simples ; tout ce qui touche à plusieurs documents ou aux droits (acceptation d'invitation, rôles, liens parent, RSVP pour un enfant, paiements, suppression de compte) passe par une callable. Paiement : Stripe Connect est le chemin actif (`functions/src/stripe*.ts`, `FeatureFlags.stripePaymentsLive`). Le code HelloAsso (`createHelloAssoCheckout`, `helloAssoWebhook` dans `functions/src/index.ts`) est **dormant mais conservé volontairement** : un passage futur à HelloAsso (plus avantageux pour les assos sportives) est envisagé — ne pas le supprimer. E-mails via Brevo.
+Les règles Firestore restent simples ; tout ce qui touche à plusieurs documents ou aux droits (acceptation d'invitation, rôles, liens parent, RSVP pour un enfant, paiements, suppression de compte) passe par une callable. Paiement : Stripe Connect est le chemin actif (`functions/src/stripe*.ts`, `FeatureFlags.stripePaymentsLive`). Le code HelloAsso (`createHelloAssoCheckout`, `helloAssoWebhook` dans `functions/src/index.ts`) est **dormant mais conservé volontairement** : un passage futur à HelloAsso (plus avantageux pour les assos sportives) est envisagé — ne pas le supprimer. De même, les retours de séance (écrans `training_feedback_*`, callable `sendTrainingFeedback`) sont **dormants mais conservés** (`FeatureFlags.trainingFeedbackLive = false`, caché même en debug) — ne pas les supprimer. E-mails via Brevo.
 
 ### Modèle de droits (« droits purs »)
 

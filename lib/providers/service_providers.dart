@@ -3,6 +3,7 @@ import 'package:viro_team_v2/services/analytics_consent_service.dart';
 import 'package:viro_team_v2/services/analytics_service.dart';
 import 'package:viro_team_v2/services/account_service.dart';
 import 'package:viro_team_v2/services/announcement_service.dart';
+import 'package:viro_team_v2/services/attendance/attendance_service.dart';
 import 'package:viro_team_v2/services/app_update_service.dart';
 import 'package:viro_team_v2/services/auth_service.dart';
 import 'package:viro_team_v2/services/club_service.dart';
@@ -148,6 +149,10 @@ final trainingPlanServiceProvider =
 
 final trainingFeedbackServiceProvider = Provider<TrainingFeedbackService>(
   (ref) => TrainingFeedbackService(),
+);
+
+final attendanceServiceProvider = Provider<AttendanceService>(
+  (ref) => AttendanceService(),
 );
 
 final clubActivityServiceProvider = Provider<ClubActivityService>(

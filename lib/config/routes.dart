@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 
 import 'package:viro_team_v2/config/deep_links.dart';
+import 'package:viro_team_v2/config/feature_flags.dart';
 import 'package:viro_team_v2/config/router_refresh.dart';
 import 'package:viro_team_v2/config/startup_session_gate.dart';
 
@@ -30,6 +31,9 @@ import 'package:viro_team_v2/features/calendar/screens/calendar_sync_screen.dart
 import 'package:viro_team_v2/features/club/providers/club_audience_providers.dart';
 import 'package:viro_team_v2/features/club/screens/club_appearance_screen.dart';
 import 'package:viro_team_v2/features/club/screens/club_activity_screen.dart';
+import 'package:viro_team_v2/features/club/screens/club_attendance_screen.dart';
+import 'package:viro_team_v2/features/club/screens/club_attendance_team_screen.dart';
+import 'package:viro_team_v2/services/attendance/attendance_stats.dart';
 import 'package:viro_team_v2/features/club/screens/club_locations_screen.dart';
 import 'package:viro_team_v2/features/club/screens/club_settings_screen.dart';
 import 'package:viro_team_v2/features/equipment/screens/club_equipment_screen.dart';
@@ -50,6 +54,7 @@ import 'package:viro_team_v2/features/training/screens/training_feedback_list_sc
 import 'package:viro_team_v2/features/training/screens/training_feedback_received_screen.dart';
 import 'package:viro_team_v2/features/training/screens/training_feedback_review_screen.dart';
 import 'package:viro_team_v2/features/training/screens/training_feedback_screen.dart';
+import 'package:viro_team_v2/features/training/screens/training_library_screen.dart';
 import 'package:viro_team_v2/features/training/screens/training_prep_screen.dart';
 import 'package:viro_team_v2/features/teams/screens/teams_hub_screen.dart';
 
@@ -173,6 +178,10 @@ abstract final class AppRoutes {
   /// Préparation d'un entraînement (une partie par coach).
   static const clubTrainingPrep = '/club/:clubId/events/:eventId/prep';
 
+  /// Bibliothèque des séances passées, ouverte depuis une préparation.
+  static const clubTrainingLibrary =
+      '/club/:clubId/events/:eventId/prep/library';
+
   /// Exercice de la préparation d'un coach.
   static const clubTrainingDrill =
       '/club/:clubId/events/:eventId/prep/:coachUid/drill/:drillId';
@@ -198,6 +207,12 @@ abstract final class AppRoutes {
   static const clubEquipment = '/club/:clubId/equipment';
 
   static const clubActivity = '/club/:clubId/activity';
+
+  /// Présences du club (staff : tout le club ; coach : ses équipes).
+  static const clubAttendance = '/club/:clubId/attendance';
+
+  /// Présences d'une équipe (`?period=` : nom d'[AttendancePeriod]).
+  static const clubAttendanceTeam = '/club/:clubId/attendance/:teamId';
 
   static const clubSettings = '/club/:clubId/settings';
 
@@ -277,6 +292,9 @@ abstract final class AppRoutes {
   static String clubTrainingPrepPath(String clubId, String eventId) =>
       '/club/$clubId/events/$eventId/prep';
 
+  static String clubTrainingLibraryPath(String clubId, String eventId) =>
+      '/club/$clubId/events/$eventId/prep/library';
+
   static String clubTrainingDrillPath(
     String clubId,
     String eventId,
@@ -317,6 +335,18 @@ abstract final class AppRoutes {
   static String clubEquipmentPath(String clubId) => '/club/$clubId/equipment';
 
   static String clubActivityPath(String clubId) => '/club/$clubId/activity';
+
+  static String clubAttendancePath(String clubId) =>
+      '/club/$clubId/attendance';
+
+  static String clubAttendanceTeamPath(
+    String clubId,
+    String teamId, {
+    String? period,
+  }) => Uri(
+    path: '/club/$clubId/attendance/$teamId',
+    queryParameters: period == null ? null : {'period': period},
+  ).toString();
 
   static String clubSettingsPath(String clubId) => '/club/$clubId/settings';
 
@@ -387,6 +417,11 @@ String completeNamesLocation({
 class ConversationsSwipeCommit {
   const ConversationsSwipeCommit();
 }
+
+/// Redirige vers l'accueil les routes des retours de séance tant qu'ils sont
+/// dormants ([FeatureFlags.trainingFeedbackLive]) ; `null` sinon.
+String? _trainingFeedbackRedirect(BuildContext context, GoRouterState state) =>
+    FeatureFlags.trainingFeedbackLive ? null : AppRoutes.home;
 
 
 
@@ -963,8 +998,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           poolTeamKey: state.pathParameters['poolTeamKey']!,
         ),
       ),
+      // Retours de séance dormants : toutes leurs routes renvoient à
+      // l'accueil tant que `FeatureFlags.trainingFeedbackLive` est coupé.
       GoRoute(
         path: AppRoutes.trainingFeedbackHub,
+        redirect: _trainingFeedbackRedirect,
         builder: (_, state) => TrainingFeedbackHubScreen(
           initialTab: TrainingFeedbackHubTab.values
               .where((tab) => tab.name == state.uri.queryParameters['tab'])
@@ -973,11 +1011,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.clubTrainingFeedbackList,
+        redirect: _trainingFeedbackRedirect,
         builder: (_, state) =>
             TrainingFeedbackListScreen(clubId: state.pathParameters['clubId']!),
       ),
       GoRoute(
         path: AppRoutes.clubTrainingFeedback,
+        redirect: _trainingFeedbackRedirect,
         builder: (_, state) => TrainingFeedbackScreen(
           clubId: state.pathParameters['clubId']!,
           eventId: state.pathParameters['eventId']!,
@@ -985,6 +1025,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.clubTrainingFeedbackReview,
+        redirect: _trainingFeedbackRedirect,
         builder: (_, state) => TrainingFeedbackReviewScreen(
           clubId: state.pathParameters['clubId']!,
           eventId: state.pathParameters['eventId']!,
@@ -994,11 +1035,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.clubTrainingFeedbackReceived,
         // Lien sans fiche destinataire : la liste des retours reçus.
-        redirect: (_, state) => state.uri.queryParameters['member'] == null
-            ? AppRoutes.trainingFeedbackHubPath(
-                tab: TrainingFeedbackHubTab.mine,
-              )
-            : null,
+        redirect: (context, state) =>
+            _trainingFeedbackRedirect(context, state) ??
+            (state.uri.queryParameters['member'] == null
+                ? AppRoutes.trainingFeedbackHubPath(
+                    tab: TrainingFeedbackHubTab.mine,
+                  )
+                : null),
         builder: (_, state) => TrainingFeedbackReceivedScreen(
           clubId: state.pathParameters['clubId']!,
           eventId: state.pathParameters['eventId']!,
@@ -1008,6 +1051,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.clubTrainingPrep,
         builder: (_, state) => TrainingPrepScreen(
+          clubId: state.pathParameters['clubId']!,
+          eventId: state.pathParameters['eventId']!,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.clubTrainingLibrary,
+        builder: (_, state) => TrainingLibraryScreen(
           clubId: state.pathParameters['clubId']!,
           eventId: state.pathParameters['eventId']!,
         ),
@@ -1233,6 +1283,36 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             child: ClubActivityScreen(clubId: clubId),
           );
 
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.clubAttendance,
+        builder: (_, state) {
+          final clubId = state.pathParameters['clubId']!;
+          return ClubAccessGuard(
+            clubId: clubId,
+            allow: (access) => access.canViewAttendance,
+            child: ClubAttendanceScreen(clubId: clubId),
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.clubAttendanceTeam,
+        builder: (_, state) {
+          final clubId = state.pathParameters['clubId']!;
+          final period = AttendancePeriod.values
+                  .where((p) => p.name == state.uri.queryParameters['period'])
+                  .firstOrNull ??
+              AttendancePeriod.last30Days;
+          return ClubAccessGuard(
+            clubId: clubId,
+            allow: (access) => access.canViewAttendance,
+            child: ClubAttendanceTeamScreen(
+              clubId: clubId,
+              teamId: state.pathParameters['teamId']!,
+              period: period,
+            ),
+          );
         },
 
       ),

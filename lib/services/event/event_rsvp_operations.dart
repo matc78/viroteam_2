@@ -88,44 +88,6 @@ class EventRsvpOperations {
     });
   }
 
-  /// Taux de réponses positives (RSVP yes) sur les 30 derniers jours.
-  ///
-  /// Lit `rsvp` ; bascule sur le legacy `attendance` via [ClubEvent.rsvpStatusForUser]
-  /// si `rsvp` est vide.
-  Future<double?> computeAttendanceRate({
-    required String clubId,
-    required String authUid,
-  }) async {
-    final since = DateTime.now().subtract(const Duration(days: 30));
-    final snap = await _paths
-        .events(clubId)
-        .where(FirestoreFields.teamMemberIds, arrayContains: authUid)
-        .where(
-          FirestoreFields.date,
-          isGreaterThanOrEqualTo: Timestamp.fromDate(since),
-        )
-        .where(
-          FirestoreFields.date,
-          isLessThan: Timestamp.fromDate(EventDateHelpers.startOfToday()),
-        )
-        .get();
-
-    var answered = 0;
-    var yesCount = 0;
-
-    for (final doc in snap.docs) {
-      final event = ClubEvent.fromFirestore(clubId: clubId, doc: doc);
-      if (event.canceled) continue;
-      final status = event.rsvpStatusForUser(authUid);
-      if (status == RsvpStatus.none) continue;
-      answered++;
-      if (status == RsvpStatus.yes) yesCount++;
-    }
-
-    if (answered == 0) return null;
-    return yesCount / answered * 100;
-  }
-
   /// Retire / réintègre des joueurs convoqués (callable, multi-occurrences).
   ///
   /// Retourne le nombre d'événements modifiés.

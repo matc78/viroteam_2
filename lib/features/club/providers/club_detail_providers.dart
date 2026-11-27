@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:viro_team_v2/features/announcements/providers/announcement_providers.dart';
 import 'package:viro_team_v2/features/auth/providers/auth_providers.dart';
+import 'package:viro_team_v2/features/club/providers/club_attendance_providers.dart';
 import 'package:viro_team_v2/features/club/providers/guardian_scope_providers.dart';
 import 'package:viro_team_v2/features/clubs/providers/user_clubs_provider.dart';
 import 'package:viro_team_v2/features/fees/providers/fee_providers.dart';
@@ -11,6 +12,7 @@ import 'package:viro_team_v2/models/club.dart';
 import 'package:viro_team_v2/models/club_event.dart';
 import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/providers/service_providers.dart';
+import 'package:viro_team_v2/services/attendance/attendance_stats.dart';
 import 'package:viro_team_v2/utils/stream_switch_map.dart';
 import 'package:viro_team_v2/features/club/providers/club_access_providers.dart';
 
@@ -117,16 +119,20 @@ final clubEventsProvider =
       );
 });
 
+/// Pastille « % de oui » de l’en-tête club : même taux 30 j que la page
+/// Présences / le portail (`summarizeAttendance`, joueurs des effectifs),
+/// réservé à l’encadrement ([ClubAccess.canViewAttendance]).
 final clubAttendanceRateProvider =
-    FutureProvider.family<double?, String>((ref, clubId) async {
-  final auth = ref.watch(firestoreAuthReadyProvider).value;
-  if (auth == null) return null;
-  // Pas de taux de présence pour un parent (lecture `teamMemberIds` refusée).
-  if (ref.watch(isGuardianOnlyInClubProvider(clubId))) return null;
-  return ref.read(eventServiceProvider).computeAttendanceRate(
-        clubId: clubId,
-        authUid: auth.uid,
-      );
+    FutureProvider.family<int?, String>((ref, clubId) async {
+  final access = ref.watch(clubAccessProvider(clubId));
+  if (!access.canViewAttendance) return null;
+  final view = await ref.watch(
+    clubAttendanceProvider((
+      clubId: clubId,
+      period: AttendancePeriod.last30Days,
+    )).future,
+  );
+  return view.summary.rate;
 });
 
 /// Planning d’une fiche cible (enfant) — pas de fusion avec le calendrier sénior.

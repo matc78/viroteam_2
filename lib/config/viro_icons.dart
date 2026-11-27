@@ -130,6 +130,12 @@ abstract final class ViroIcons {
   // Outils d’entraînement (préparation, retours, tableau blanc)
   static IconData get trainingPrep => PhosphorIconsRegular.clipboardText;
   static IconData get feedback => PhosphorIconsRegular.chatCircleText;
+
+  /// Bibliothèque des séances passées.
+  static IconData get library => PhosphorIconsRegular.books;
+
+  /// Présences (taux de oui des convoqués).
+  static IconData get attendance => PhosphorIconsRegular.chartBar;
   static IconData get star => PhosphorIconsRegular.star;
   static IconData get starFill => PhosphorIconsFill.star;
   static IconData get starHalf => PhosphorIconsFill.starHalf;
@@ -254,6 +260,8 @@ abstract final class ViroIcons {
           icons: [
             ('trainingPrep', trainingPrep),
             ('feedback', feedback),
+            ('library', library),
+            ('attendance', attendance),
             ('star', star),
             ('starFill', starFill),
             ('starHalf', starHalf),

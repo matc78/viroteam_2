@@ -18,6 +18,7 @@ import {
   updateClubSeasonEndDate,
 } from "@/lib/firebase/clubService";
 import { ClubBrandColorPicker } from "@/components/settings/ClubBrandColorPicker";
+import { PracticeLocationsSettings } from "@/components/settings/PracticeLocationsSettings";
 import {
   encodeBrandColorHex,
   sanitizeBrandColorHex,
@@ -262,7 +263,9 @@ export function SettingsPageClient() {
         <section className={`${panelStyles.panel} ${shared.group}`} data-tone="cyan">
           <header className={shared.groupHeader}>
             <h2 className={shared.groupTitle}>Club</h2>
-            <p className={shared.groupLead}>Saison, logo et couleur du club.</p>
+            <p className={shared.groupLead}>
+              Saison, logo, lieux et couleur du club.
+            </p>
           </header>
 
           <div className={shared.accordionList}>
@@ -376,6 +379,26 @@ export function SettingsPageClient() {
                 />
               ) : null}
             </SettingsAccordion>
+
+            {activeClub ? (
+              <SettingsAccordion
+                title="Lieux de pratique"
+                description="Proposés à la création des événements"
+                value={
+                  activeClub.practiceLocations.length > 0
+                    ? `${activeClub.practiceLocations.length} lieu${activeClub.practiceLocations.length > 1 ? "x" : ""}`
+                    : undefined
+                }
+              >
+                <PracticeLocationsSettings
+                  key={activeClub.id}
+                  clubId={activeClub.id}
+                  sport={activeClub.sport}
+                  locations={activeClub.practiceLocations}
+                  onSaved={refreshProfile}
+                />
+              </SettingsAccordion>
+            ) : null}
 
             <SettingsAccordion
               title="Couleur du club"

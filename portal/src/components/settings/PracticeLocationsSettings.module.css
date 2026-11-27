@@ -1,0 +1,175 @@
+/* Lieux de pratique du club (Paramètres). */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* ——— Liste des lieux ——— */
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  min-height: 3rem;
+  padding: 0.6rem 0.5rem;
+  border-top: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.row:first-child {
+  border-top: none;
+}
+
+.row[data-editing="true"] {
+  background: var(--surface-muted);
+}
+
+.rowText {
+  min-width: 0;
+}
+
+.rowName {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.rowDetails {
+  margin: 0.15rem 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.rowActions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    color 140ms ease;
+}
+
+.iconButton:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.iconButton[data-tone="danger"]:hover:not(:disabled) {
+  color: var(--status-danger-text);
+}
+
+.iconButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.iconButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ——— Formulaire ——— */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.formTitle {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm) var(--space-md);
+}
+
+.grid > label {
+  max-width: none;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ——— Autocomplétion ——— */
+
+.suggestField {
+  position: relative;
+}
+
+.suggestions {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  max-height: 12rem;
+  overflow-y: auto;
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-popover);
+}
+
+.suggestionItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 0.55rem 0.85rem;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.suggestionItem:hover,
+.suggestionItem:focus-visible {
+  background: var(--surface-hover);
+  outline: none;
+}

@@ -1,4 +1,11 @@
-import { doc, getDoc, Timestamp, updateDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  runTransaction,
+  serverTimestamp,
+  Timestamp,
+  updateDoc,
+} from "firebase/firestore";
 import {
   coachPermissionsToFirestore,
   parseCoachPermissions,
@@ -163,6 +170,51 @@ export async function updateClubSeasonEndDate(params: {
       new Date(Date.UTC(day.getFullYear(), day.getMonth(), day.getDate())),
     ),
     [Fields.updatedAt]: Timestamp.now(),
+  });
+}
+
+/** Deux lieux identiques (nom, adresse, ville, catégorie). */
+export function samePracticeLocation(
+  left: PracticeLocation,
+  right: PracticeLocation,
+): boolean {
+  return (
+    left.name === right.name &&
+    (left.address ?? "") === (right.address ?? "") &&
+    (left.city ?? "") === (right.city ?? "") &&
+    (left.category ?? "") === (right.category ?? "") &&
+    (left.categoryCustom ?? "") === (right.categoryCustom ?? "")
+  );
+}
+
+/**
+ * Modifie la liste des lieux de pratique du club (droit
+ * `manageClubSettings`) — même forme que l’app (`updatePracticeLocations`).
+ * [update] reçoit la liste relue dans une transaction (pas d’écrasement d’un
+ * ajout fait ailleurs entre-temps) ; elle lève une erreur si le lieu visé
+ * n’y est plus.
+ */
+export async function updateClubPracticeLocations(params: {
+  clubId: string;
+  update: (current: PracticeLocation[]) => PracticeLocation[];
+}): Promise<void> {
+  const db = getAppFirestore();
+  const clubRef = doc(db, Collections.clubs, params.clubId);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(clubRef);
+    const current = parsePracticeLocations(snap.data()?.[Fields.practiceLocations]);
+    tx.update(clubRef, {
+      [Fields.practiceLocations]: params.update(current).map((location) => ({
+        [Fields.name]: location.name,
+        ...(location.address ? { [Fields.address]: location.address } : {}),
+        ...(location.city ? { [Fields.city]: location.city } : {}),
+        ...(location.category ? { [Fields.category]: location.category } : {}),
+        ...(location.categoryCustom
+          ? { [Fields.categoryCustom]: location.categoryCustom }
+          : {}),
+      })),
+      [Fields.updatedAt]: serverTimestamp(),
+    });
   });
 }
 

@@ -164,6 +164,8 @@ export const Fields = {
   description: "description",
   brandColorHex: "brandColorHex",
   practiceLocations: "practiceLocations",
+  /** Libellé libre d’un lieu de pratique de catégorie « Autre ». */
+  categoryCustom: "categoryCustom",
   objectives: "objectives",
   objectivesLabels: "objectivesLabels",
   memberCountRange: "memberCountRange",

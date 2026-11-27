@@ -411,6 +411,7 @@ export function clubsAsTeamOptions(
     category: "",
     playerIds: [],
     coachIds: [],
+    sparringIds: [],
   }));
 }
 

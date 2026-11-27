@@ -140,6 +140,10 @@ abstract final class ViroIcons {
   static IconData get roleParent => PhosphorIconsFill.usersThree;
   static IconData get roleAdmin => PhosphorIconsFill.shieldCheck;
   static IconData get roleMember => PhosphorIconsFill.user;
+  static IconData get roleSparring => PhosphorIconsFill.handshake;
+
+  /// Bascule joueur ↔ sparring (action sur une ligne d'effectif).
+  static IconData get sparringToggle => PhosphorIconsRegular.handshake;
 
   /// Catalogue pour l'écran design system (groupé).
   static List<ViroIconCatalogGroup> get catalog => [
@@ -261,6 +265,8 @@ abstract final class ViroIcons {
             ('roleParent', roleParent),
             ('roleAdmin', roleAdmin),
             ('roleMember', roleMember),
+            ('roleSparring', roleSparring),
+            ('sparringToggle', sparringToggle),
           ],
         ),
       ];

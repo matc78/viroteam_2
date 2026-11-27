@@ -103,7 +103,16 @@ export type TeamOption = {
   /** Identifiants roster joueurs (pour `teamMemberIds` à la création). */
   playerIds: string[];
   coachIds: string[];
+  /** Sparrings (⊆ playerIds) : non convoqués par défaut aux matchs. */
+  sparringIds: string[];
 };
+
+/** Sparrings d’une équipe, limités à ses joueurs (`sparringIds` ⊆ `playerIds`). */
+export function parseSparringIds(raw: unknown, playerIds: string[]): string[] {
+  if (!Array.isArray(raw)) return [];
+  const players = new Set(playerIds);
+  return [...new Set(raw.map(String))].filter((id) => players.has(id));
+}
 
 /** Membre club pour filtres planning et invités (coach / joueur / admin). */
 export type PlanningPersonOption = {
@@ -406,6 +415,7 @@ async function queryTeamsForClub(clubId: string): Promise<TeamOption[]> {
       const coachIds = Array.isArray(coachIdsRaw)
         ? coachIdsRaw.map(String)
         : [];
+      const sparringIds = parseSparringIds(data[Fields.sparringIds], playerIds);
       const category =
         typeof data[Fields.category] === "string"
           ? String(data[Fields.category]).trim()
@@ -416,6 +426,7 @@ async function queryTeamsForClub(clubId: string): Promise<TeamOption[]> {
         category,
         playerIds,
         coachIds,
+        sparringIds,
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name, "fr"));
@@ -971,6 +982,10 @@ export async function loadTeamsByIds(
               : "",
           playerIds: Array.isArray(playerIdsRaw) ? playerIdsRaw.map(String) : [],
           coachIds: Array.isArray(coachIdsRaw) ? coachIdsRaw.map(String) : [],
+          sparringIds: parseSparringIds(
+            data[Fields.sparringIds],
+            Array.isArray(playerIdsRaw) ? playerIdsRaw.map(String) : [],
+          ),
         } satisfies TeamOption;
       } catch {
         // Équipe non lisible pour ce compte (règles) : on l’ignore.

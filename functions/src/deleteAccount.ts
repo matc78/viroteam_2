@@ -127,22 +127,25 @@ async function removeFromTeams(
       teamsCol.where(field, "array-contains", memberId).get(),
     ),
   );
-  const patches = new Map<DocumentReference, Record<string, unknown>>();
+  // Clé = chemin : la même équipe remonte par plusieurs champs.
+  const patches = new Map<string, { ref: DocumentReference; patch: Record<string, unknown> }>();
   for (const snap of snaps) {
     for (const teamDoc of snap.docs) {
       const data = teamDoc.data();
-      const patch = patches.get(teamDoc.ref) ?? {};
+      const patch = patches.get(teamDoc.ref.path)?.patch ?? {};
       for (const field of TEAM_ROSTER_FIELDS) {
         const ids = stringArray(data[field]);
         const next = ids.filter((id) => id !== memberId);
         if (next.length !== ids.length) patch[field] = next;
       }
-      if (Object.keys(patch).length > 0) patches.set(teamDoc.ref, patch);
+      if (Object.keys(patch).length > 0) {
+        patches.set(teamDoc.ref.path, { ref: teamDoc.ref, patch });
+      }
     }
   }
   if (patches.size === 0) return;
   const batch = db().batch();
-  for (const [ref, patch] of patches) {
+  for (const { ref, patch } of patches.values()) {
     batch.update(ref, { ...patch, updatedAt: serverTimestamp() });
   }
   await batch.commit();

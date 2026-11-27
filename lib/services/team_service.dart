@@ -390,6 +390,35 @@ class TeamService {
     );
   }
 
+  /// Passe le joueur [memberId] en sparring ([sparring] = true) ou le repasse
+  /// joueur. Il doit être sur le roster joueurs ; les convocations des matchs
+  /// à venir suivent par trigger serveur.
+  Future<void> setPlayerSparring({
+    required String clubId,
+    required String teamId,
+    required String memberId,
+    required bool sparring,
+  }) async {
+    final teamRef = _teams(clubId).doc(teamId);
+    await _db.runTransaction((tx) async {
+      final teamSnap = await tx.get(teamRef);
+      if (!teamSnap.exists) {
+        throw StateError('Équipe introuvable.');
+      }
+      final team = ClubTeam.fromFirestore(clubId: clubId, doc: teamSnap);
+      if (!team.playerIds.contains(memberId)) {
+        throw StateError('Joueur absent de l’équipe.');
+      }
+      if (team.sparringIds.contains(memberId) == sparring) return;
+      tx.update(teamRef, {
+        FirestoreFields.sparringIds: sparring
+            ? FieldValue.arrayUnion([memberId])
+            : FieldValue.arrayRemove([memberId]),
+        FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
   Future<void> removePendingPlayerFromTeam({
     required String clubId,
     required String teamId,
@@ -456,8 +485,21 @@ class TeamService {
         nextIds = currentIds.where((id) => id != rosterUid).toList();
       }
 
+      final sparringIds =
+          ((teamSnap.data()?[FirestoreFields.sparringIds] as List<dynamic>?)
+                      ?.whereType<String>() ??
+                  const <String>[])
+              .toList();
+      // Un joueur retiré cesse aussi d'être sparring (`sparringIds` ⊆ joueurs).
+      final dropSparring = !add &&
+          rosterField == FirestoreFields.playerIds &&
+          sparringIds.contains(rosterUid);
+
       tx.update(teamRef, {
         rosterField: nextIds,
+        if (dropSparring)
+          FirestoreFields.sparringIds:
+              sparringIds.where((id) => id != rosterUid).toList(),
         FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
       });
     });

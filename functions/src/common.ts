@@ -65,8 +65,16 @@ export function accountUidOf(member: { accountUid?: unknown } | undefined | null
   return accountUid.length > 0 ? accountUid : null;
 }
 
-/** Champs d'une équipe qui listent des ids de fiche (effectif, coachs, invités). */
-export const TEAM_ROSTER_FIELDS = ["playerIds", "coachIds", "pendingPlayerIds"] as const;
+/**
+ * Champs d'une équipe qui listent des ids de fiche (effectif, coachs, invités,
+ * sparrings — sous-ensemble de `playerIds`).
+ */
+export const TEAM_ROSTER_FIELDS = [
+  "playerIds",
+  "coachIds",
+  "pendingPlayerIds",
+  "sparringIds",
+] as const;
 
 /** Lien parent d'un compte (`users/{uid}.parentLinks[]`). */
 export type ParentLink = {

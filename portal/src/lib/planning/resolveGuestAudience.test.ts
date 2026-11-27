@@ -27,6 +27,7 @@ describe("resolveGuestAudience", () => {
           category: "U13",
           playerIds: ["uid-a"],
           coachIds: [],
+          sparringIds: [],
         },
       ],
       [

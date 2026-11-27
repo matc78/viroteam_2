@@ -259,20 +259,25 @@ async function handleRemoveMember(
     tx.update(clubRef, clubPatch);
 
     // Rosters : un patch fusionné par équipe, tous champs concernés.
-    const teamPatches = new Map<DocumentReference, Record<string, unknown>>();
+    const teamPatches = new Map<
+      string,
+      { ref: DocumentReference; patch: Record<string, unknown> }
+    >();
     for (const snap of rosterSnaps) {
       for (const teamDoc of snap.docs) {
-        const patch = teamPatches.get(teamDoc.ref) ?? {};
+        const patch = teamPatches.get(teamDoc.ref.path)?.patch ?? {};
         const data = teamDoc.data();
         for (const field of TEAM_ROSTER_FIELDS) {
           const ids = stringArray(data[field]);
           const next = ids.filter((id) => id !== memberId);
           if (next.length !== ids.length) patch[field] = next;
         }
-        if (Object.keys(patch).length > 0) teamPatches.set(teamDoc.ref, patch);
+        if (Object.keys(patch).length > 0) {
+          teamPatches.set(teamDoc.ref.path, { ref: teamDoc.ref as DocumentReference, patch });
+        }
       }
     }
-    for (const [ref, patch] of teamPatches) {
+    for (const { ref, patch } of teamPatches.values()) {
       tx.update(ref, { ...patch, updatedAt: serverTimestamp() });
     }
 

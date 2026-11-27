@@ -46,6 +46,8 @@
   --color-role-coach: #ea580c;
   --color-role-parent: #059669;
   --color-role-admin: #7c3aed;
+  /* Sparring : gris argent (même famille que ViroColors.sparringBadge*). */
+  --color-role-sparring: #8a949e;
 
   /* Semantic */
   --color-success: #10b981;

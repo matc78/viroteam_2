@@ -411,7 +411,13 @@ class _TeamFederationLinkSheetState
           if (entries != null && entries.isNotEmpty)
             Text(
               AppCopy.planning.convocationCount(
-                entries.where((p) => !_excludedIds.contains(p.id)).length,
+                entries
+                    .where(
+                      (p) =>
+                          !_excludedIds.contains(p.id) &&
+                          !widget.team.isSparring(p.id),
+                    )
+                    .length,
                 entries.length,
               ),
               style: theme.labelMedium?.copyWith(
@@ -443,8 +449,12 @@ class _TeamFederationLinkSheetState
           ConvocationPlayerListTile(
             key: ValueKey(entry.id),
             member: entry.member,
-            convoked: !_excludedIds.contains(entry.id),
-            enabled: !_busy,
+            // Sparring : exclu d'office des matchs importés (serveur), à
+            // ajouter match par match.
+            convoked: !_excludedIds.contains(entry.id) &&
+                !widget.team.isSparring(entry.id),
+            sparring: widget.team.isSparring(entry.id),
+            enabled: !_busy && !widget.team.isSparring(entry.id),
             accentColor: widget.accent,
             onChanged: (convoked) => _togglePlayer(entry.id, convoked),
           ),

@@ -62,6 +62,7 @@ describe("buildEventGuestRows", () => {
         category: "Sénior",
         playerIds: ["uid-paul"],
         coachIds: ["uid-paul"],
+        sparringIds: [],
       },
     ];
     const rows = buildEventGuestRows({
@@ -95,6 +96,7 @@ describe("badges des RSVP", () => {
       category: "Sénior",
       playerIds: ["uid-alix"],
       coachIds: ["uid-paul", "uid-admin-coach"],
+      sparringIds: [],
     },
   ];
   const directory = buildGuestDirectoryFromPeople([

@@ -58,6 +58,17 @@ test("buildTeamRekeyPatch promeut une fiche en attente en joueur", () => {
   );
 });
 
+test("buildTeamRekeyPatch re-clé aussi les sparrings", () => {
+  assert.deepEqual(
+    buildTeamRekeyPatch(
+      { playerIds: ["mem-a", "uid-b"], sparringIds: ["mem-a"] },
+      "mem-a",
+      "uid-a",
+    ),
+    { playerIds: ["uid-a", "uid-b"], sparringIds: ["uid-a"] },
+  );
+});
+
 test("buildTeamRekeyPatch est idempotent", () => {
   const team = { playerIds: ["mem-a"], coachIds: [], pendingPlayerIds: [] };
   const patch = buildTeamRekeyPatch(team, "mem-a", "uid-a");

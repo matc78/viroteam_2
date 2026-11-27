@@ -168,10 +168,15 @@ class _PlanningConvocationSheetState
           return const Center(child: ViroLogoLoader());
         }
         final eventTeamIds = widget.event.teamIds.toSet();
+        final eventTeams =
+            teams.where((team) => eventTeamIds.contains(team.id)).toList();
         final players = teamPlayerEntries(
-          teams.where((team) => eventTeamIds.contains(team.id)).toList(),
+          eventTeams,
           indexClubMembersById(members),
         );
+        final sparringIds = {
+          for (final team in eventTeams) ...team.sparringIds,
+        };
         _seed(players);
 
         return Column(
@@ -262,6 +267,7 @@ class _PlanningConvocationSheetState
                         key: ValueKey(entry.id),
                         member: entry.member,
                         convoked: _convoked.contains(entry.id),
+                        sparring: sparringIds.contains(entry.id),
                         enabled: !_saving,
                         onChanged: (convoked) => setState(() {
                           if (convoked) {

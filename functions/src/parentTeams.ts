@@ -16,8 +16,11 @@ import {
   isActiveChild,
   playerIdsOf,
   sameIdSet,
+  sparringIdsOf,
   type ChildTeams,
 } from "./parentTeamsUtils";
+import { planSparringMatchChange } from "./teamSparringUtils";
+import { updateEachInTransaction } from "./transactions";
 
 export { computeParentTeamIds } from "./parentTeamsUtils";
 
@@ -201,8 +204,9 @@ type TeamWrittenEvent = FirestoreEvent<
 /**
  * Sur chaque écriture d'équipe : synchronise `members.teamIds`,
  * `members.coachTeamIds` et les
- * convocations des events à venir (joueurs **et** coachs), puis recalcule
- * `parentTeamIds` des guardians pour les changements de `playerIds` uniquement.
+ * convocations des events à venir (joueurs **et** coachs) et des matchs à venir
+ * pour les sparrings, puis recalcule `parentTeamIds` des guardians pour les
+ * changements de `playerIds` uniquement.
  */
 async function handleTeamWritten(event: TeamWrittenEvent): Promise<void> {
   const before = event.data?.before?.exists ? event.data.before.data() : undefined;
@@ -237,6 +241,29 @@ async function handleTeamWritten(event: TeamWrittenEvent): Promise<void> {
       teamId,
       added: audienceAdded,
       removed: audienceRemoved,
+    });
+  }
+
+  // Sparrings (sous-ensemble des joueurs restants) : convocations des matchs ;
+  // un sparring qui quitte l'effectif voit son exclusion levée.
+  const playersAfter = new Set(playerIdsOf(after));
+  const sparringsBefore = sparringIdsOf(before);
+  const sparringDiff = diffIds(sparringsBefore, sparringIdsOf(after));
+  const sparringAdded = sparringDiff.added.filter((id) => playersAfter.has(id));
+  const sparringRemoved = sparringDiff.removed.filter((id) => playersAfter.has(id));
+  const sparringReleased = sparringsBefore.filter((id) => !playersAfter.has(id));
+  if (
+    sparringAdded.length > 0 ||
+    sparringRemoved.length > 0 ||
+    sparringReleased.length > 0
+  ) {
+    await syncUpcomingMatchesForSparringChange({
+      firestore,
+      clubId,
+      teamId,
+      added: sparringAdded,
+      removed: sparringRemoved,
+      released: sparringReleased,
     });
   }
 
@@ -359,6 +386,67 @@ async function syncUpcomingEventAudienceForRosterChange(params: {
   }
 
   if (pending > 0) await batch.commit();
+}
+
+/**
+ * Matchs à venir d'une équipe quand des joueurs passent sparring ([added]),
+ * redeviennent joueurs ([removed]) ou quittent l'équipe en étant sparrings
+ * ([released]) : voir `planSparringMatchChange`.
+ *
+ * Les triggers peuvent arriver dans le désordre (bascules rapides) : chaque
+ * id est confronté à l'état courant de l'équipe avant d'agir, et chaque match
+ * est relu et écrit dans une transaction (pas d'écrasement d'une écriture
+ * concurrente). Idempotent.
+ */
+async function syncUpcomingMatchesForSparringChange(params: {
+  firestore: Firestore;
+  clubId: string;
+  teamId: string;
+  added: string[];
+  removed: string[];
+  released: string[];
+}): Promise<void> {
+  const { firestore, clubId, teamId } = params;
+  const clubRef = firestore.collection("clubs").doc(clubId);
+  const teamSnap = await clubRef.collection("teams").doc(teamId).get();
+  const team = teamSnap.exists ? teamSnap.data() : undefined;
+  const players = new Set(playerIdsOf(team));
+  const sparrings = new Set(sparringIdsOf(team));
+  const added = params.added.filter((id) => players.has(id) && sparrings.has(id));
+  const removed = params.removed.filter((id) => players.has(id) && !sparrings.has(id));
+  const released = params.released.filter((id) => !players.has(id));
+  if (added.length === 0 && removed.length === 0 && released.length === 0) return;
+  const coachIds = coachIdsOf(team);
+
+  const eventsSnap = await clubRef
+    .collection("events")
+    .where("teamIds", "array-contains", teamId)
+    .where("date", ">=", admin.firestore.Timestamp.fromDate(startOfTodayUtc()))
+    .get();
+  if (eventsSnap.empty) return;
+
+  await updateEachInTransaction(
+    firestore,
+    eventsSnap.docs.map((doc) => doc.ref),
+    (eventData) => {
+      const plan = planSparringMatchChange({
+        eventData,
+        added,
+        removed,
+        released,
+        coachIds,
+      });
+      if (!plan) return null;
+      const patch: Record<string, unknown> = {
+        teamMemberIds: plan.teamMemberIds,
+        excludedMemberIds: plan.excludedMemberIds,
+      };
+      for (const path of plan.deletedMapPaths) {
+        patch[path] = admin.firestore.FieldValue.delete();
+      }
+      return patch;
+    },
+  );
 }
 
 /**

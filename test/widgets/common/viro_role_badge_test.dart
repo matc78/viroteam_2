@@ -97,4 +97,22 @@ void main() {
     expect(decoration.gradient, isNull);
     expect(decoration.boxShadow, isNull);
   });
+
+  testWidgets('badge Sparring : dégradé gris argent, texte sombre', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ViroTheme.light,
+        home: const Scaffold(
+          body: Center(child: ViroRoleBadge(role: ViroRole.sparring)),
+        ),
+      ),
+    );
+
+    expect(find.text(AppCopy.common.roleSparring), findsOneWidget);
+    final style = RoleBadgeVisual.forRole(ViroRole.sparring);
+    expect(style.start, ViroColors.sparringBadgeStart);
+    expect(style.end, ViroColors.sparringBadgeEnd);
+    expect(style.foreground, ViroColors.sparringBadgeText);
+    expect(style.flat, isFalse);
+  });
 }

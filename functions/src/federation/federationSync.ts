@@ -225,7 +225,11 @@ export async function syncTeamFederation(params: {
     const convocation = importConvocation({
       playerIds: uniq(stringArray(team.playerIds)),
       coachIds: uniq(stringArray(team.coachIds)),
-      excludedPlayerIds: link.excludedMemberIds,
+      // Sparrings : jamais convoqués par défaut aux matchs.
+      excludedPlayerIds: uniq([
+        ...link.excludedMemberIds,
+        ...stringArray(team.sparringIds),
+      ]),
     });
     const silentStamp = { [SILENT_WRITE_FIELD]: timestamp };
     const eventsRef = clubRef.collection("events");

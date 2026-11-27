@@ -52,6 +52,11 @@ export function coachIdsOf(teamData: Record<string, unknown> | undefined): strin
   return uniq(stringArray(teamData?.coachIds));
 }
 
+/** Identifiants sparrings d'un doc `teams/{teamId}` (sous-ensemble des joueurs). */
+export function sparringIdsOf(teamData: Record<string, unknown> | undefined): string[] {
+  return uniq(stringArray(teamData?.sparringIds));
+}
+
 /** Vrai si les deux listes contiennent les mêmes ids (ordre indifférent). */
 export function sameIdSet(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false;

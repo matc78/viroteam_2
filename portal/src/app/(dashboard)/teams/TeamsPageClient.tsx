@@ -27,6 +27,7 @@ import {
   createTeam,
   deleteTeam,
   removeMemberFromTeam,
+  setTeamPlayerSparring,
   updateTeam,
   type TeamRosterRole,
 } from "@/lib/firebase/teamService";
@@ -230,6 +231,33 @@ function TeamsPageContent() {
     );
   }
 
+  /** Passe un joueur sparring ou le repasse joueur (droit d’ajout de joueurs). */
+  async function handleSetSparring(params: {
+    teamId: string;
+    memberId: string;
+    sparring: boolean;
+  }) {
+    if (!activeClub) return;
+    if (!canAddPlayerToTeam(caps.access, params.teamId)) return;
+    await runTeamAction(
+      async () => {
+        await setTeamPlayerSparring({
+          clubId: activeClub.id,
+          teamId: params.teamId,
+          memberId: params.memberId,
+          sparring: params.sparring,
+        });
+        reload();
+      },
+      {
+        successMessage: params.sparring
+          ? "Joueur passé en sparring : il n’est plus convoqué d’office aux matchs."
+          : "Joueur de retour : il est reconvoqué aux matchs à venir.",
+        errorFallback: "Changement du statut sparring impossible.",
+      },
+    );
+  }
+
   if (loading && !data) {
     return <DashboardSkeleton variant="members" />;
   }
@@ -269,6 +297,7 @@ function TeamsPageContent() {
           onDeleteTeam={handleDeleteTeam}
           onAddMember={handleAddTeamMember}
           onRemoveMember={handleRemoveTeamMember}
+          onSetSparring={handleSetSparring}
         />
       ) : null}
     </div>

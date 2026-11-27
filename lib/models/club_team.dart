@@ -13,6 +13,7 @@ class ClubTeam {
     this.playerIds = const [],
     this.coachIds = const [],
     this.pendingPlayerIds = const [],
+    this.sparringIds = const [],
     this.messagingLink,
     this.parentsMessagingLink,
     this.federation,
@@ -26,6 +27,10 @@ class ClubTeam {
   final List<String> playerIds;
   final List<String> coachIds;
   final List<String> pendingPlayerIds;
+
+  /// Joueurs sparrings (sous-ensemble de [playerIds]) : non convoqués par
+  /// défaut aux matchs, ajoutables à la main.
+  final List<String> sparringIds;
   final String? messagingLink;
   final String? parentsMessagingLink;
 
@@ -44,6 +49,10 @@ class ClubTeam {
 
   bool isPendingOnRoster(String pendingId) =>
       pendingPlayerIds.contains(pendingId);
+
+  /// `true` si le joueur [memberId] (id de fiche) est sparring de l'équipe.
+  bool isSparring(String memberId) =>
+      sparringIds.contains(memberId) && playerIds.contains(memberId);
 
   factory ClubTeam.fromFirestore({
     required String clubId,
@@ -69,6 +78,10 @@ class ClubTeam {
                   ?.whereType<String>()
                   .toList() ??
               [],
+      sparringIds: (data[FirestoreFields.sparringIds] as List<dynamic>?)
+              ?.whereType<String>()
+              .toList() ??
+          [],
       messagingLink: (data[FirestoreFields.messagingLink] as String?)?.trim(),
       parentsMessagingLink:
           (data[FirestoreFields.parentsMessagingLink] as String?)?.trim(),

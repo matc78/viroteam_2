@@ -23,6 +23,7 @@ function team(
     category: "",
     playerIds: [],
     coachIds: [],
+    sparringIds: [],
     ...overrides,
   };
 }

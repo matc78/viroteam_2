@@ -318,3 +318,47 @@
 .panel[data-tone="lime"] { --team-tone: var(--tone-lime); }
 .panel[data-tone="red"] { --team-tone: var(--tone-red); }
 .panel[data-tone="slate"] { --team-tone: var(--tone-slate); }
+
+/* Sparrings : explication et invitation à glisser un joueur. */
+.sectionHint {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.dropHint {
+  margin: 0;
+  padding: 0.75rem;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-control);
+  font-size: var(--font-size-sm);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* Glisser-déposer Joueurs ↔ Sparrings. */
+.person[data-draggable="true"] {
+  cursor: grab;
+}
+
+.person[data-draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.person[data-dragging="true"] {
+  opacity: 0.45;
+}
+
+.section[data-drop-ready="true"] {
+  margin: -0.4rem;
+  padding: 0.4rem;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+}
+
+.section[data-drop-active="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+

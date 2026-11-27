@@ -54,7 +54,7 @@ Responsable cotisations (`manageFees`, `viewFees`) · Responsable annonces (`man
 | Vue | Badge |
 |---|---|
 | Fiche membre, vue Membres, sélecteur de club, chat | Badge club : Admin > Entraîneur > Joueur > Membre |
-| Vue équipe | Rôle dans cette équipe (Entraîneur / Joueur), jamais Admin |
+| Vue équipe | Rôle dans cette équipe (Entraîneur / Joueur / Sparring), jamais Admin. Sparring (gris argent) = joueur de `teams.sparringIds`, non convoqué par défaut aux matchs ; aussi sur les lignes de convocation d'un match et dans le libellé « Équipe (sparring) » de la fiche |
 | RSVP d'un événement d'équipe | Entraîneur si coach d'une équipe de l'événement, sinon rien |
 | RSVP d'un événement spécial (`allTeams` ou aucune équipe) | Admin si la fiche a le droit `admin`, sinon comme ci-dessus |
 

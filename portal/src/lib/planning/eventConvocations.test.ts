@@ -5,6 +5,7 @@ import {
   buildConvocationRows,
   canManageEventConvocations,
   computeConvocationDeltas,
+  defaultExcludedPlayerIds,
 } from "./eventConvocations";
 
 const teams: TeamOption[] = [
@@ -14,6 +15,7 @@ const teams: TeamOption[] = [
     category: "",
     playerIds: ["uid-a", "uid-b", "mem-c"],
     coachIds: ["uid-coach"],
+    sparringIds: [],
   },
 ];
 
@@ -81,5 +83,35 @@ describe("canManageEventConvocations", () => {
     expect(
       canManageEventConvocations({ teamIds: ["t"], startsAt: "2026-10-24T18:00:00Z" }, clock),
     ).toBe(true);
+  });
+});
+
+describe("sparrings", () => {
+  const sparringTeam: TeamOption = {
+    id: "team1",
+    name: "Séniors",
+    category: "",
+    playerIds: ["uid-a", "uid-s"],
+    coachIds: [],
+    sparringIds: ["uid-s"],
+  };
+
+  it("décoche par défaut les sparrings d’un match seulement", () => {
+    expect(defaultExcludedPlayerIds("match", sparringTeam)).toEqual(new Set(["uid-s"]));
+    expect(defaultExcludedPlayerIds("training", sparringTeam)).toEqual(new Set());
+    expect(defaultExcludedPlayerIds("match", null)).toEqual(new Set());
+  });
+
+  it("marque les lignes des sparrings", () => {
+    const rows = buildConvocationRows({
+      event: { teamIds: ["team1"], teamMemberIds: ["uid-a"], excludedMemberIds: ["uid-s"] },
+      teams: [sparringTeam],
+      directory: {},
+    });
+    expect(rows.find((row) => row.key === "uid-s")).toMatchObject({
+      sparring: true,
+      convoked: false,
+    });
+    expect(rows.find((row) => row.key === "uid-a")?.sparring).toBe(false);
   });
 });

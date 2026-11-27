@@ -45,6 +45,31 @@ void main() {
     });
   });
 
+  group('resolveMemberTeamLabels', () {
+    test('« sparring » à la place de « joueur » pour un sparring', () {
+      const seniors = ClubTeam(
+        id: 't1',
+        clubId: 'c1',
+        name: 'Seniors',
+        playerIds: ['m1'],
+        sparringIds: ['m1'],
+      );
+      const juniors = ClubTeam(
+        id: 't2',
+        clubId: 'c1',
+        name: 'Juniors',
+        playerIds: ['m1'],
+      );
+      expect(
+        resolveMemberTeamLabels(member(), [seniors, juniors]),
+        [
+          'Juniors (${AppCopy.members.teamRolePlayer})',
+          'Seniors (${AppCopy.members.teamRoleSparring})',
+        ],
+      );
+    });
+  });
+
   group('rightsSummary', () {
     test('admin prime', () {
       expect(

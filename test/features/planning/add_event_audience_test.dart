@@ -92,6 +92,36 @@ void main() {
       form.dispose();
     });
 
+    test('match : les sparrings de l’équipe sont décochés par défaut', () {
+      final form = AddEventFormController(initialDate: DateTime(2026, 10, 23))
+        ..setKnownTeams([
+          const ClubTeam(
+            id: 'u13',
+            clubId: 'c1',
+            name: 'u13',
+            playerIds: ['mem-a', 'mem-s'],
+            sparringIds: ['mem-s'],
+          ),
+          _team('u15', ['mem-b']),
+        ])
+        ..onTypeChanged(EventTypes.match)
+        ..setTeamId('u13');
+      expect(form.excludedPlayerIds, {'mem-s'});
+
+      // Ajout manuel possible.
+      form.togglePlayerConvoked('mem-s');
+      expect(form.excludedPlayerIds, isEmpty);
+
+      form.setTeamId('u15');
+      expect(form.excludedPlayerIds, isEmpty);
+
+      form
+        ..setTeamId('u13')
+        ..onTypeChanged(EventTypes.training);
+      expect(form.excludedPlayerIds, isEmpty, reason: 'entraînement : tous');
+      form.dispose();
+    });
+
     test('match : au moins un joueur convoqué', () {
       const club = Club(id: 'c1', name: 'Club', sport: 'football');
       final form = AddEventFormController(initialDate: DateTime(2026, 10, 23))

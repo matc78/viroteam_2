@@ -139,6 +139,7 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
                   membersByUid: membersByUid,
                   sessionMemberId: sessionMemberId,
                   displayRole: ViroRole.player,
+                  sparringIds: team.sparringIds.toSet(),
                 ),
               ),
               if (team.pendingPlayerIds.isNotEmpty) ...[
@@ -178,12 +179,14 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
     );
   }
 
-  /// Lignes de roster des [uids] connus (membre en session en tête).
+  /// Lignes de roster des [uids] connus (membre en session en tête) ; les
+  /// [sparringIds] affichent le badge Sparring à la place de [displayRole].
   List<Widget> _memberTiles(
     List<String> uids, {
     required Map<String, ClubMember> membersByUid,
     required String? sessionMemberId,
     required ViroRole displayRole,
+    Set<String> sparringIds = const {},
   }) {
     final orderedIds = pinSessionMemberIdFirst(
       uids,
@@ -198,7 +201,8 @@ class _TeamExpansionCardState extends ConsumerState<TeamExpansionCard> {
             accentColor: widget.accent,
             showClubAdminActions: false,
             embedded: true,
-            displayRole: displayRole,
+            displayRole:
+                sparringIds.contains(uid) ? ViroRole.sparring : displayRole,
             isSessionMember: member.memberId == sessionMemberId,
             onTap: member.hasLinkedAccount
                 ? () => showMemberDetailSheet(

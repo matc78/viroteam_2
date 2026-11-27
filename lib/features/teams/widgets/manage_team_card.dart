@@ -114,6 +114,9 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
     final canRemovePlayer = canManageTeams;
     final canRemoveCoach = canManageTeams;
     final canRemovePending = canManageTeams;
+    // Sparring : même condition que l'ajout de joueurs (droit équipes ou
+    // coach avec gestion d'effectif).
+    final canToggleSparring = canAddPlayer;
     final canShareTeamInvite = access.canShareTeamInvite(team.id);
     // Calendrier FFVB : volley seulement (une équipe déjà liée garde son bloc
     // pour pouvoir être déliée si le sport du club a changé).
@@ -141,6 +144,7 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
       String uid, {
       required ViroRole role,
       required void Function(String uid, ClubMember member)? onRemove,
+      void Function(String uid, ClubMember member)? onToggleSparring,
     }) {
       final member = membersByUid[uid];
       if (member == null) return null;
@@ -154,6 +158,10 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
         isSessionMember: member.memberId == sessionMemberId,
         onTap: _memberProfileTap(member),
         onRemove: onRemove == null ? null : () => onRemove(uid, member),
+        isSparring: role == ViroRole.sparring,
+        onToggleSparring: onToggleSparring == null
+            ? null
+            : () => onToggleSparring(uid, member),
       );
     }
 
@@ -245,8 +253,12 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
                       for (final uid in orderedPlayerIds)
                         ?rosterTile(
                           uid,
-                          role: ViroRole.player,
+                          role: team.isSparring(uid)
+                              ? ViroRole.sparring
+                              : ViroRole.player,
                           onRemove: canRemovePlayer ? _removePlayer : null,
+                          onToggleSparring:
+                              canToggleSparring && !_busy ? _toggleSparring : null,
                         ),
                     ],
                   ),
@@ -383,6 +395,24 @@ class _ManageTeamCardState extends ConsumerState<ManageTeamCard> {
             );
       },
       successMessage: _removedMessage(name),
+    );
+  }
+
+  /// Passe le joueur en sparring ou le repasse joueur (convocations des
+  /// matchs à venir mises à jour par le serveur).
+  Future<void> _toggleSparring(String uid, ClubMember member) async {
+    final sparring = !widget.team.isSparring(uid);
+    await _run(
+      () => ref.read(teamServiceProvider).setPlayerSparring(
+            clubId: widget.team.clubId,
+            teamId: widget.team.id,
+            memberId: uid,
+            sparring: sparring,
+          ),
+      successMessage: AppCopy.teams.sparringUpdated(
+        memberName: _displayName(member.fullName),
+        sparring: sparring,
+      ),
     );
   }
 

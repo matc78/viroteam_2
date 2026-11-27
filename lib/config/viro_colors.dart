@@ -64,6 +64,12 @@ abstract final class ViroColors {
   static const Color memberBadgeBackground = Color(0xFF6B7586); // = --color-gray-500 du portail
   static const Color memberBadgeText = white;
 
+  /// Badge Sparring (joueur non convoqué par défaut aux matchs) : dégradé
+  /// gris argent clair, texte sombre (= --color-role-sparring* du portail).
+  static const Color sparringBadgeStart = Color(0xFFE4E8ED);
+  static const Color sparringBadgeEnd = Color(0xFFAEB6C1);
+  static const Color sparringBadgeText = Color(0xFF3A4350);
+
   static const Color roleBadgeText = white;
   static const Color roleBadgeIconBg = Color(0x33FFFFFF);
 

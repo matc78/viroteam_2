@@ -18,7 +18,20 @@ export type ConvocationRow = {
   avatarUrl: string | null;
   /** Convoqué d’après l’état actuel de l’événement. */
   convoked: boolean;
+  /** Sparring d’une équipe de l’événement (badge). */
+  sparring: boolean;
 };
+
+/**
+ * Joueurs décochés par défaut à la création d’un événement : les sparrings de
+ * l’équipe pour un match, personne sinon.
+ */
+export function defaultExcludedPlayerIds(
+  type: string,
+  team: Pick<TeamOption, "sparringIds"> | null,
+): Set<string> {
+  return new Set(type === "match" && team ? team.sparringIds : []);
+}
 
 /**
  * Joueurs des équipes de l’événement (+ exclus hors roster), dédoublonnés,
@@ -37,6 +50,9 @@ export function buildConvocationRows(params: {
   const { event, teams, directory } = params;
   const teamById = new Map(teams.map((team) => [team.id, team]));
   const excludedSet = new Set(event.excludedMemberIds);
+  const sparringSet = new Set(
+    event.teamIds.flatMap((teamId) => teamById.get(teamId)?.sparringIds ?? []),
+  );
 
   const candidateIds: string[] = [];
   for (const teamId of event.teamIds) {
@@ -55,6 +71,7 @@ export function buildConvocationRows(params: {
       name: entry?.name.trim() || "Membre",
       avatarUrl: entry?.avatarUrl ?? null,
       convoked: !excludedSet.has(memberId),
+      sparring: sparringSet.has(memberId),
     });
   }
   return rows.sort((left, right) => left.name.localeCompare(right.name, "fr"));

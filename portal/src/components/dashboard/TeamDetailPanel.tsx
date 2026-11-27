@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type DragEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/icons";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -20,6 +20,12 @@ import styles from "./TeamDetailPanel.module.css";
 
 /** Au-delà, un champ filtre la liste des joueurs du panneau. */
 const PLAYER_FILTER_THRESHOLD = 12;
+
+/** Type de donnée du glisser-déposer Joueurs ↔ Sparrings (id de fiche). */
+const ROSTER_DRAG_TYPE = "application/x-viroteam-roster-member";
+
+/** Section d’une ligne de roster. */
+type RosterZone = "coach" | "player" | "sparring";
 
 /** Personne d’un roster affichée dans le panneau. */
 type RosterPerson = {
@@ -44,12 +50,15 @@ type TeamDetailPanelProps = {
   canManageCoaches: boolean;
   canAddPlayer: boolean;
   canRemovePlayer: boolean;
+  /** Passer un joueur sparring / le repasser joueur. */
+  canToggleSparring: boolean;
   canShareInvite: boolean;
   onClose: () => void;
   onEdit: () => void;
   onInvite: () => void;
   onAddMember: (role: TeamRosterRole) => void;
   onRemoveMember: (memberId: string, role: TeamRosterRole) => Promise<void>;
+  onSetSparring: (memberId: string, sparring: boolean) => Promise<void>;
   onDelete: () => Promise<void>;
 };
 
@@ -97,12 +106,14 @@ export function TeamDetailPanel({
   canManageCoaches,
   canAddPlayer,
   canRemovePlayer,
+  canToggleSparring,
   canShareInvite,
   onClose,
   onEdit,
   onInvite,
   onAddMember,
   onRemoveMember,
+  onSetSparring,
   onDelete,
 }: TeamDetailPanelProps) {
   const panelRef = useDialogA11y({ onClose, modal: false });
@@ -111,6 +122,13 @@ export function TeamDetailPanel({
   );
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [playerFilter, setPlayerFilter] = useState("");
+  /** Section d’origine du joueur en cours de glisser-déposer. */
+  const [dragFrom, setDragFrom] = useState<"player" | "sparring" | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  /** Section survolée pendant le glisser-déposer (cible de dépôt). */
+  const [dropTarget, setDropTarget] = useState<"player" | "sparring" | null>(
+    null,
+  );
 
   useEffect(() => {
     setConfirmingRemoval(null);
@@ -126,6 +144,7 @@ export function TeamDetailPanel({
     () => resolveRoster(team.playerIds, membersById, viewerMemberId),
     [team.playerIds, membersById, viewerMemberId],
   );
+  const sparringIds = useMemo(() => new Set(team.sparringIds), [team.sparringIds]);
   const visiblePlayers = useMemo(() => {
     const needle = normalizeSearchText(playerFilter);
     if (!needle) return players;
@@ -133,20 +152,83 @@ export function TeamDetailPanel({
       normalizeSearchText(person.displayName).includes(needle),
     );
   }, [players, playerFilter]);
+  const regularPlayers = visiblePlayers.filter(
+    (person) => !sparringIds.has(person.memberId),
+  );
+  const sparrings = visiblePlayers.filter((person) =>
+    sparringIds.has(person.memberId),
+  );
+  const sparringCount = players.filter((person) =>
+    sparringIds.has(person.memberId),
+  ).length;
+  const regularPlayerCount = players.length - sparringCount;
+  const canDragPlayers = canToggleSparring && !busy;
 
   const categoryLabel = team.category.trim() || NO_CATEGORY_LABEL;
 
+  /** Fin du glisser-déposer (dépôt, abandon ou sortie du panneau). */
+  function endDrag() {
+    setDragFrom(null);
+    setDropTarget(null);
+    setDraggingId(null);
+  }
+
+  /** Props de dépôt d’une section Joueurs / Sparrings. */
+  function dropZoneProps(zone: "player" | "sparring") {
+    const accepts = canDragPlayers && dragFrom !== null && dragFrom !== zone;
+    return {
+      "data-drop-active": accepts && dropTarget === zone ? "true" : undefined,
+      "data-drop-ready": accepts ? "true" : undefined,
+      onDragOver: (dragEvent: DragEvent) => {
+        if (!accepts) return;
+        dragEvent.preventDefault();
+        dragEvent.dataTransfer.dropEffect = "move";
+        if (dropTarget !== zone) setDropTarget(zone);
+      },
+      onDragLeave: (dragEvent: DragEvent) => {
+        const next = dragEvent.relatedTarget as Node | null;
+        if (next && dragEvent.currentTarget.contains(next)) return;
+        if (dropTarget === zone) setDropTarget(null);
+      },
+      onDrop: (dragEvent: DragEvent) => {
+        if (!accepts) return;
+        dragEvent.preventDefault();
+        const memberId = dragEvent.dataTransfer.getData(ROSTER_DRAG_TYPE);
+        endDrag();
+        if (memberId) void onSetSparring(memberId, zone === "sparring");
+      },
+    };
+  }
+
   /** Ligne d’une personne du roster, avec retrait confirmé sur place. */
-  function renderPerson(person: RosterPerson, role: TeamRosterRole) {
+  function renderPerson(person: RosterPerson, zone: RosterZone) {
+    const role: TeamRosterRole = zone === "coach" ? "coach" : "player";
     const canRemove = role === "coach" ? canManageCoaches : canRemovePlayer;
     const confirmKey = `${role}:${person.memberId}`;
     const confirming = confirmingRemoval === confirmKey;
     const isViewer = person.memberId === viewerMemberId;
+    const draggable = zone !== "coach" && canDragPlayers && !confirming;
     return (
       <li
         key={confirmKey}
         className={styles.person}
         data-confirming={confirming ? "true" : undefined}
+        data-draggable={draggable ? "true" : undefined}
+        data-dragging={
+          dragFrom === zone && draggingId === person.memberId ? "true" : undefined
+        }
+        draggable={draggable || undefined}
+        onDragStart={
+          draggable
+            ? (dragEvent) => {
+                dragEvent.dataTransfer.setData(ROSTER_DRAG_TYPE, person.memberId);
+                dragEvent.dataTransfer.effectAllowed = "move";
+                setDraggingId(person.memberId);
+                setDragFrom(zone === "sparring" ? "sparring" : "player");
+              }
+            : undefined
+        }
+        onDragEnd={draggable ? endDrag : undefined}
       >
         <MemberAvatar
           displayName={person.displayName}
@@ -162,9 +244,7 @@ export function TeamDetailPanel({
           {person.displayName}
           {isViewer ? <span className={styles.youTag}>Moi</span> : null}
         </span>
-        {confirming ? null : (
-          <RoleBadge role={role === "coach" ? "coach" : "player"} size="sm" />
-        )}
+        {confirming ? null : <RoleBadge role={zone} size="sm" />}
         {canRemove ? (
           confirming ? (
             <span className={styles.confirmInline}>
@@ -298,10 +378,14 @@ export function TeamDetailPanel({
           )}
         </section>
 
-        <section className={styles.section} aria-labelledby="team-players">
+        <section
+          className={styles.section}
+          aria-labelledby="team-players"
+          {...dropZoneProps("player")}
+        >
           <div className={styles.sectionHeader}>
             <h3 id="team-players" className={styles.sectionTitle}>
-              Joueurs <span className={styles.sectionCount}>{players.length}</span>
+              Joueurs <span className={styles.sectionCount}>{regularPlayerCount}</span>
             </h3>
             {canAddPlayer ? (
               <Button
@@ -336,12 +420,47 @@ export function TeamDetailPanel({
             </p>
           ) : visiblePlayers.length === 0 ? (
             <p className={styles.emptyText}>Aucun joueur ne correspond.</p>
+          ) : regularPlayers.length === 0 ? (
+            <p className={styles.emptyText}>
+              {playerFilter
+                ? "Aucun joueur ne correspond."
+                : "Tous les joueurs sont sparrings."}
+            </p>
           ) : (
             <ul className={styles.people}>
-              {visiblePlayers.map((person) => renderPerson(person, "player"))}
+              {regularPlayers.map((person) => renderPerson(person, "player"))}
             </ul>
           )}
         </section>
+
+        {players.length > 0 && (canToggleSparring || sparringCount > 0) ? (
+          <section
+            className={styles.section}
+            aria-labelledby="team-sparrings"
+            {...dropZoneProps("sparring")}
+          >
+            <div className={styles.sectionHeader}>
+              <h3 id="team-sparrings" className={styles.sectionTitle}>
+                Sparrings <span className={styles.sectionCount}>{sparringCount}</span>
+              </h3>
+            </div>
+            <p className={styles.sectionHint}>
+              S’entraînent avec l’équipe mais ne sont pas convoqués d’office aux
+              matchs : à ajouter match par match dans « Gérer les convoqués ».
+            </p>
+            {sparrings.length > 0 ? (
+              <ul className={styles.people}>
+                {sparrings.map((person) => renderPerson(person, "sparring"))}
+              </ul>
+            ) : sparringCount > 0 ? (
+              <p className={styles.emptyText}>Aucun sparring ne correspond.</p>
+            ) : canToggleSparring ? (
+              <p className={styles.dropHint}>
+                Glissez un joueur ici pour en faire un sparring.
+              </p>
+            ) : null}
+          </section>
+        ) : null}
 
         {canDelete ? (
           <section className={styles.dangerZone} aria-labelledby="team-danger">

@@ -7,8 +7,9 @@ import 'package:viro_team_v2/models/club_member.dart';
 import 'package:viro_team_v2/widgets/lists/convocation_player_list_tile.dart';
 import 'package:viro_team_v2/widgets/common/viro_logo_loader.dart';
 
-/// Match : joueurs de l'équipe choisie, tous convoqués par défaut ; le coach
-/// décoche ceux qui ne sont pas du match (et peut les recocher).
+/// Match : joueurs de l'équipe choisie, convoqués par défaut sauf les
+/// sparrings ([sparringIds]) ; le coach décoche ceux qui ne sont pas du match
+/// (et peut les recocher, sparrings compris).
 class AddEventConvocationSection extends StatelessWidget {
   /// [players] `null` = chargement en cours.
   const AddEventConvocationSection({
@@ -18,6 +19,7 @@ class AddEventConvocationSection extends StatelessWidget {
     required this.accentColor,
     required this.enabled,
     required this.onPlayerToggled,
+    this.sparringIds = const {},
   });
 
   final List<({String id, ClubMember member})>? players;
@@ -25,6 +27,9 @@ class AddEventConvocationSection extends StatelessWidget {
   final Color accentColor;
   final bool enabled;
   final ValueChanged<String> onPlayerToggled;
+
+  /// Sparrings de l'équipe (badge sur leur ligne).
+  final Set<String> sparringIds;
 
   @override
   Widget build(BuildContext context) {
@@ -72,6 +77,7 @@ class AddEventConvocationSection extends StatelessWidget {
               convoked: !excludedIds.contains(entry.id),
               enabled: enabled,
               accentColor: accentColor,
+              sparring: sparringIds.contains(entry.id),
               onChanged: (_) => onPlayerToggled(entry.id),
             ),
         ],

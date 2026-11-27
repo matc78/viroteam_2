@@ -14,11 +14,9 @@ List<String> resolveCoachedTeamNames(ClubMember member, List<ClubTeam> teams) {
   return names;
 }
 
-/// Libellés équipes avec rôle roster (ex. « M18 filles (joueur) »).
-List<String> resolveMemberTeamLabels(
-  ClubMember member,
-  List<ClubTeam> teams,
-) {
+/// Libellés équipes avec rôle roster (ex. « M18 filles (joueur) »,
+/// « Seniors (sparring) »).
+List<String> resolveMemberTeamLabels(ClubMember member, List<ClubTeam> teams) {
   final labels = <String>[];
 
   for (final team in teams) {
@@ -29,7 +27,13 @@ List<String> resolveMemberTeamLabels(
 
     final roles = <String>[];
     if (isCoach) roles.add(AppCopy.members.teamRoleCoach);
-    if (isPlayer) roles.add(AppCopy.members.teamRolePlayer);
+    if (isPlayer) {
+      roles.add(
+        team.isSparring(member.memberId)
+            ? AppCopy.members.teamRoleSparring
+            : AppCopy.members.teamRolePlayer,
+      );
+    }
 
     if (roles.isEmpty) {
       labels.add(team.name);

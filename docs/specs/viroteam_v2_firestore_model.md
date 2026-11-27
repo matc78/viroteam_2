@@ -147,6 +147,7 @@ V1 produit : au plus un guardian `active` ou `pending` par `memberId` (`maxActiv
 | `playerIds` | array | UIDs des joueurs |
 | `coachIds` | array | UIDs des coachs |
 | `pendingPlayerIds` | array | Invités sans compte (`pending_members`) |
+| `sparringIds` | array? | Sparrings : sous-ensemble de `playerIds` (règles), non convoqués par défaut aux matchs (création, import FFVB) ; le trigger `onTeamWritten` les exclut des matchs à venir (sauf réponse « oui ») et les reconvoque quand ils redeviennent joueurs. Coach : selon `canManageTeamRoster` |
 | `avatarUrl` | string | |
 | `messagingLink` | string? | URL du groupe de discussion (ex. WhatsApp équipe) |
 | `parentsMessagingLink` | string? | URL du groupe parents (ex. WhatsApp) |

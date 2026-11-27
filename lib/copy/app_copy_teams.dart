@@ -101,4 +101,17 @@ final class AppCopyTeams {
     required String teamName,
   }) =>
       '$memberName a été retiré(e) de $teamName.';
+
+  /// Infobulle de bascule joueur ↔ sparring sur une ligne d'effectif.
+  String get makeSparringTooltip => 'Passer en sparring';
+  String get makePlayerTooltip => 'Repasser joueur';
+
+  /// Snackbar après bascule sparring.
+  String sparringUpdated({
+    required String memberName,
+    required bool sparring,
+  }) =>
+      sparring
+          ? '$memberName passe sparring : plus convoqué(e) d’office aux matchs.'
+          : '$memberName repasse joueur : de retour sur les convocations de match.';
 }

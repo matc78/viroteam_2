@@ -73,8 +73,33 @@ class AddEventFormController extends ChangeNotifier {
   /// Types sans équipe : équipes convoquées quand [audienceWholeClub] est faux.
   final Set<String> audienceTeamIds = {};
 
-  /// Match : joueurs de l'équipe décochés par le coach (non convoqués).
+  /// Match : joueurs de l'équipe décochés par le coach (non convoqués) ;
+  /// les sparrings de l'équipe le sont par défaut.
   final Set<String> excludedPlayerIds = {};
+
+  /// Sparrings par id d'équipe (`teams.sparringIds`), pour décocher par
+  /// défaut les sparrings d'un match. Renseigné par [setKnownTeams].
+  final Map<String, Set<String>> _sparringIdsByTeam = {};
+
+  /// Mémorise les équipes du club (sparrings) sans notifier : appelé au build.
+  /// Les sparrings de l'équipe courante sont décochés dès que l'équipe est
+  /// connue, tant que l'utilisateur n'a rien coché lui-même.
+  void setKnownTeams(List<ClubTeam> teams) {
+    final firstLoad = _sparringIdsByTeam.isEmpty;
+    _sparringIdsByTeam
+      ..clear()
+      ..addAll({for (final team in teams) team.id: team.sparringIds.toSet()});
+    if (firstLoad && excludedPlayerIds.isEmpty) _resetExcludedPlayers();
+  }
+
+  /// Réinitialise les décochés : sparrings de l'équipe pour un match, sinon
+  /// personne.
+  void _resetExcludedPlayers() {
+    excludedPlayerIds.clear();
+    if (isMatch && teamId != null) {
+      excludedPlayerIds.addAll(_sparringIdsByTeam[teamId] ?? const {});
+    }
+  }
 
   /// Vrai si le type courant est un match.
   bool get isMatch => type == EventTypes.match;
@@ -105,6 +130,7 @@ class AddEventFormController extends ChangeNotifier {
       return;
     }
     teamId = sortedTeams.first.id;
+    _resetExcludedPlayers();
     notifyListeners();
   }
 
@@ -113,8 +139,8 @@ class AddEventFormController extends ChangeNotifier {
     _userEdited = true;
     final nextType = value ?? EventTypes.training;
     type = nextType;
-    excludedPlayerIds.clear();
     if (EventTypes.isTeamless(nextType)) teamId = null;
+    _resetExcludedPlayers();
     if (!importantReminderManuallyEdited) {
       importantReminder = addEventImportantByDefault(nextType);
     }
@@ -235,11 +261,13 @@ class AddEventFormController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Met à jour l’équipe sélectionnée (les joueurs décochés repartent à zéro).
+  /// Met à jour l’équipe sélectionnée (les joueurs décochés repartent à zéro,
+  /// sparrings de la nouvelle équipe décochés pour un match).
   void setTeamId(String? value) {
     _userEdited = true;
-    if (value != teamId) excludedPlayerIds.clear();
+    final changed = value != teamId;
     teamId = value;
+    if (changed) _resetExcludedPlayers();
     notifyListeners();
   }
 

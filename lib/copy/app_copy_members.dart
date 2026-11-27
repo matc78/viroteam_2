@@ -209,6 +209,12 @@ final class AppCopyMembers {
 
   String get teamRoleCoach => 'entraîneur';
   String get teamRolePlayer => 'joueur';
+  String get teamRoleSparring => 'sparring';
+
+  /// Section de la fiche membre : bascule sparring par équipe.
+  String get sparringSectionTitle => 'Sparring';
+  String get sparringSectionHint =>
+      'Un sparring s’entraîne avec l’équipe mais n’est pas convoqué d’office aux matchs.';
 
   String inviteSendSummary({
     required int sent,

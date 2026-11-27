@@ -137,6 +137,8 @@ export const Fields = {
   playerIds: "playerIds",
   coachIds: "coachIds",
   pendingPlayerIds: "pendingPlayerIds",
+  /** Sparrings d’une équipe (⊆ playerIds) : non convoqués par défaut aux matchs. */
+  sparringIds: "sparringIds",
   category: "category",
   announcementId: "announcementId",
   rsvp: "rsvp",

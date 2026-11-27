@@ -30,6 +30,8 @@ export type MemberRow = ClubMemberRecord & {
   feeStatusLabel: string;
   /** Badge principal : `admin` > `coach` > `player` > `member`. */
   badge: MemberBadge;
+  /** Équipes où le membre est joueur, avec son statut sparring. */
+  playerTeams: { teamId: string; teamName: string; sparring: boolean }[];
 };
 
 /** Affectation roster d’un membre sur une équipe. */
@@ -38,6 +40,8 @@ export type MemberTeamAssignment = {
   teamName: string;
   isCoach: boolean;
   isPlayer: boolean;
+  /** Joueur sparring de l’équipe (non convoqué par défaut aux matchs). */
+  isSparring: boolean;
 };
 
 /** Données page Membres. */
@@ -62,7 +66,7 @@ export function feeStatusLabel(status: string | null): string {
 export function formatMemberTeamLabel(assignment: MemberTeamAssignment): string {
   const roles: string[] = [];
   if (assignment.isCoach) roles.push("coach");
-  if (assignment.isPlayer) roles.push("joueur");
+  if (assignment.isPlayer) roles.push(assignment.isSparring ? "sparring" : "joueur");
   if (roles.length === 0) return assignment.teamName;
   return `${assignment.teamName} (${roles.join(" + ")})`;
 }
@@ -89,6 +93,7 @@ export function resolveMemberTeams(
       teamName: team.name,
       isCoach,
       isPlayer,
+      isSparring: isPlayer && team.sparringIds.includes(member.memberId),
     });
   }
 
@@ -156,6 +161,13 @@ export async function loadMembersPageData(
       feeStatus,
       feeStatusLabel: feeStatusLabel(feeStatus),
       badge: primaryBadge(member),
+      playerTeams: resolved.assignments
+        .filter((assignment) => assignment.isPlayer)
+        .map((assignment) => ({
+          teamId: assignment.teamId,
+          teamName: assignment.teamName,
+          sparring: assignment.isSparring,
+        })),
     };
   });
 

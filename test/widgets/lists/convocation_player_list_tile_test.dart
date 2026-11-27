@@ -78,6 +78,25 @@ void main() {
     );
   });
 
+  testWidgets('sparring : badge Sparring affiché', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ViroTheme.light,
+        home: Scaffold(
+          body: ConvocationPlayerListTile(
+            member: _member,
+            convoked: false,
+            sparring: true,
+            onChanged: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text(AppCopy.common.roleSparring), findsOneWidget);
+    expect(find.text(AppCopy.planning.notConvoked), findsOneWidget);
+  });
+
   testWidgets('désactivée : le tap ne change rien', (tester) async {
     var changed = false;
     await tester.pumpWidget(

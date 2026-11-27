@@ -34,8 +34,8 @@ function timestampMillis(value: unknown): number | null {
 }
 
 /**
- * Patch d'équipe : remplace [from] par [to] dans `playerIds` / `coachIds` ;
- * une fiche en attente (`pendingPlayerIds`) liée devient joueur.
+ * Patch d'équipe : remplace [from] par [to] dans `playerIds` / `coachIds` /
+ * `sparringIds` ; une fiche en attente (`pendingPlayerIds`) liée devient joueur.
  * Retourne `null` si rien ne change.
  */
 export function buildTeamRekeyPatch(
@@ -58,6 +58,9 @@ export function buildTeamRekeyPatch(
 
   const nextCoaches = migrateTeamMemberIds(stringArray(team.coachIds), from, to);
   if (nextCoaches) patch.coachIds = nextCoaches;
+
+  const nextSparrings = migrateTeamMemberIds(stringArray(team.sparringIds), from, to);
+  if (nextSparrings) patch.sparringIds = nextSparrings;
 
   return Object.keys(patch).length > 0 ? patch : null;
 }

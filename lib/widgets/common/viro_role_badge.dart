@@ -13,7 +13,9 @@ import 'package:viro_team_v2/copy/app_copy.dart';
 /// `admin`, équipes entraînées, effectif : voir [MemberBadge]).
 /// [ViroRole.parent] = relation parent↔enfant
 /// ([ProjectConfig.parentLinksField]), pas un droit.
-enum ViroRole { player, coach, parent, admin, member }
+/// [ViroRole.sparring] = joueur sparring d'une équipe (`teams.sparringIds`),
+/// affiché seulement quand une équipe est en contexte (jamais dérivé de la fiche).
+enum ViroRole { player, coach, parent, admin, member, sparring }
 
 /// Badge UI d'un [MemberBadge].
 ViroRole viroRoleFromBadge(MemberBadge badge) => switch (badge) {
@@ -240,6 +242,7 @@ abstract final class RoleBadgeVisual {
         ViroRole.parent => AppCopy.common.roleParent,
         ViroRole.admin => AppCopy.common.roleAdmin,
         ViroRole.member => AppCopy.common.roleMember,
+        ViroRole.sparring => AppCopy.common.roleSparring,
       };
 
   static RoleBadgeStyle forRole(ViroRole role) => switch (role) {
@@ -269,6 +272,12 @@ abstract final class RoleBadgeVisual {
             icon: ViroIcons.roleMember,
             foreground: ViroColors.memberBadgeText,
             flat: true,
+          ),
+        ViroRole.sparring => RoleBadgeStyle(
+            start: ViroColors.sparringBadgeStart,
+            end: ViroColors.sparringBadgeEnd,
+            icon: ViroIcons.roleSparring,
+            foreground: ViroColors.sparringBadgeText,
           ),
       };
 }

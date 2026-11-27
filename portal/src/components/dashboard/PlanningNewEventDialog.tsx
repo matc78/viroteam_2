@@ -30,6 +30,7 @@ import {
   type PlanningGuestSelection,
 } from "@/lib/planning/resolveGuestAudience";
 import { buildGuestDirectoryFromPeople } from "@/lib/planning/eventGuestRows";
+import { defaultExcludedPlayerIds } from "@/lib/planning/eventConvocations";
 import { convocationsCopy } from "@/lib/copy/convocationsCopy";
 import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import {
@@ -222,9 +223,16 @@ export function PlanningNewEventDialog({
   );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  /** Match : joueurs décochés (retirés des convoqués), réinitialisé au changement d'équipe / type. */
+  /**
+   * Match : joueurs décochés (retirés des convoqués), réinitialisé au
+   * changement d'équipe / type ; les sparrings de l'équipe partent décochés.
+   */
   const [excludedPlayerIds, setExcludedPlayerIds] = useState<Set<string>>(
-    () => new Set(),
+    () =>
+      defaultExcludedPlayerIds(
+        type,
+        teams.find((team) => team.id === teamId) ?? null,
+      ),
   );
 
   const teamSelectOptions = useMemo(
@@ -280,6 +288,7 @@ export function PlanningNewEventDialog({
   /** Match : joueurs de l'équipe sélectionnée (id roster = id `teamMemberIds`). */
   const matchRosterItems = useMemo<ConvocationChecklistItem[]>(() => {
     if (!isMatch || !selectedTeam) return [];
+    const sparrings = new Set(selectedTeam.sparringIds);
     return [...new Set(selectedTeam.playerIds.filter(Boolean))]
       .map((playerId) => {
         const entry = peopleDirectory[playerId];
@@ -287,6 +296,7 @@ export function PlanningNewEventDialog({
           key: playerId,
           name: entry?.name.trim() || convocationsCopy.memberFallback,
           avatarUrl: entry?.avatarUrl ?? null,
+          sparring: sparrings.has(playerId),
         };
       })
       .sort((left, right) => left.name.localeCompare(right.name, "fr"));
@@ -342,7 +352,12 @@ export function PlanningNewEventDialog({
 
   function handleTeamChange(nextTeamId: string) {
     setTeamId(nextTeamId);
-    setExcludedPlayerIds(new Set());
+    setExcludedPlayerIds(
+      defaultExcludedPlayerIds(
+        type,
+        teams.find((team) => team.id === nextTeamId) ?? null,
+      ),
+    );
   }
 
   function handleMatchCheckedChange(nextCheckedKeys: Set<string>) {
@@ -359,7 +374,11 @@ export function PlanningNewEventDialog({
   function handleTypeChange(nextType: EventType) {
     setType(nextType);
     setError(null);
-    setExcludedPlayerIds(new Set());
+    // Équipe effective après le changement : la première si aucune n'est
+    // choisie (passage d'un type sans équipe à Match).
+    setExcludedPlayerIds(
+      defaultExcludedPlayerIds(nextType, selectedTeam ?? teams[0] ?? null),
+    );
     if (!importantReminderEdited) {
       setImportantReminder(importantReminderByDefault(nextType));
     }

@@ -27,6 +27,7 @@ import { FadeScrollArea } from "@/components/dashboard/FadeScrollArea";
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import panelStyles from "./DashboardPanel.module.css";
 import dialogStyles from "./DashboardDialog.module.css";
+import { SettingRows, ToggleRow } from "@/components/ui/ToggleRow";
 import { InviteEmailButton } from "./InviteEmailButton";
 import { MemberAvatar } from "./MemberAvatar";
 import styles from "./MemberDetailPanel.module.css";
@@ -50,6 +51,9 @@ type MemberDetailPanelProps = {
   /** Retirer un admin exige le droit Administrateur. */
   canRemoveMember?: boolean;
   canManageParents?: boolean;
+  /** Bascule sparring possible sur cette équipe (droit d’ajout de joueurs). */
+  canToggleSparring?: (teamId: string) => boolean;
+  onSetSparring?: (teamId: string, sparring: boolean) => Promise<void>;
   onClose: () => void;
   onSaveProfile: (input: {
     firstName: string;
@@ -80,6 +84,8 @@ export function MemberDetailPanel({
   isOwnProfile = false,
   canRemoveMember = false,
   canManageParents = false,
+  canToggleSparring,
+  onSetSparring,
   onClose,
   onSaveProfile,
   onSaveLicense,
@@ -322,6 +328,9 @@ export function MemberDetailPanel({
   const showAdminSection =
     canEditMember || canEditLicense || canEditRights || isOwnProfile;
   const showDangerSection = canRemoveMember;
+  const sparringTeams = onSetSparring
+    ? member.playerTeams.filter((team) => canToggleSparring?.(team.teamId))
+    : [];
 
   return (
     <div
@@ -519,6 +528,26 @@ export function MemberDetailPanel({
             </div>
           </div>
         </section>
+
+        {sparringTeams.length > 0 && onSetSparring ? (
+          <section className={styles.section} data-tone="blue">
+            <h3 className={styles.sectionTitle}>Sparring</h3>
+            <div className={styles.sectionBody}>
+              <SettingRows>
+                {sparringTeams.map((team) => (
+                  <ToggleRow
+                    key={team.teamId}
+                    label={team.teamName}
+                    description="Sparring : s’entraîne avec l’équipe, pas convoqué d’office aux matchs."
+                    checked={team.sparring}
+                    disabled={panelBusy}
+                    onChange={(sparring) => void onSetSparring(team.teamId, sparring)}
+                  />
+                ))}
+              </SettingRows>
+            </div>
+          </section>
+        ) : null}
 
         {(canManageParents || showInviteActions) ? (
           <section className={styles.section} data-tone="amber">

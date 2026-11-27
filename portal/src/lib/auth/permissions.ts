@@ -144,9 +144,11 @@ export type MemberBadge = (typeof MEMBER_BADGES)[number];
 
 /**
  * Seule liste des badges affichables : ceux d'une fiche, plus Parent (déduit
- * des liens parent, pas de la fiche). Libellés : `@/lib/copy/badgeCopy`.
+ * des liens parent, pas de la fiche) et Sparring (joueur sparring d'une
+ * équipe, affiché seulement quand une équipe est en contexte). Libellés :
+ * `@/lib/copy/badgeCopy`.
  */
-export const DISPLAY_BADGES = [...MEMBER_BADGES, "parent"] as const;
+export const DISPLAY_BADGES = [...MEMBER_BADGES, "parent", "sparring"] as const;
 export type DisplayBadge = (typeof DISPLAY_BADGES)[number];
 
 /** Badge affichable, ou `member` (gris) si inconnu ou absent. */

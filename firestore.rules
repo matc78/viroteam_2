@@ -166,8 +166,9 @@ service cloud.firestore {
     }
 
     /// Un coach modifie les équipes qu'il encadre, sans toucher à la liste des
-    /// coachs (droit équipes) ; ajouter des joueurs suit `canManageTeamRoster`
-    /// (vrai par défaut). Retirer un joueur reste au droit équipes.
+    /// coachs (droit équipes) ; ajouter des joueurs ou changer les sparrings
+    /// suit `canManageTeamRoster` (vrai par défaut). Retirer un joueur reste au
+    /// droit équipes.
     function isCoachTeamUpdate(clubId, teamId) {
       let added = request.resource.data.get('playerIds', [])
         .toSet().difference(resource.data.get('playerIds', []).toSet());
@@ -175,9 +176,15 @@ service cloud.firestore {
         .toSet().difference(request.resource.data.get('playerIds', []).toSet());
       return teamId in coachedTeamIds(clubId)
         && !affectedKeys().hasAny(['coachIds', 'name', 'category'])
-        && (!affectedKeys().hasAny(['playerIds', 'pendingPlayerIds'])
+        && (!affectedKeys().hasAny(['playerIds', 'pendingPlayerIds', 'sparringIds'])
           || coachFlag(clubId, 'canManageTeamRoster', true))
         && removed.size() == 0;
+    }
+
+    /// Les sparrings (`sparringIds`) sont toujours des joueurs de l'équipe.
+    function sparringWithinRoster() {
+      return request.resource.data.get('sparringIds', []).toSet()
+        .difference(request.resource.data.get('playerIds', []).toSet()).size() == 0;
     }
 
     // ————————————————————————————————————————————————————————————
@@ -801,9 +808,11 @@ service cloud.firestore {
         // capacités sur l'équipe).
         // `federation` (lien FFVB + état de synchro) : Functions uniquement.
         allow create: if can(clubId, 'manageTeams')
-          && !request.resource.data.keys().hasAny(['federation']);
+          && !request.resource.data.keys().hasAny(['federation'])
+          && sparringWithinRoster();
         allow update: if (can(clubId, 'manageTeams') || isCoachTeamUpdate(clubId, teamId))
-          && !affectedKeys().hasAny(['federation']);
+          && !affectedKeys().hasAny(['federation'])
+          && sparringWithinRoster();
         allow delete: if can(clubId, 'manageTeams');
 
         // Classement et matchs de la poule fédé (écrits par la synchro).

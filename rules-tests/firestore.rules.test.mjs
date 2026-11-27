@@ -1466,6 +1466,49 @@ test("un coach gère le roster de son équipe seulement, selon son droit", async
   );
 });
 
+test("sparrings : joueurs de l'équipe seulement, coach selon son droit d'effectif", async () => {
+  await assertSucceeds(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/teams/teamA`), { sparringIds: [PLAYER.uid] }),
+  );
+  // Un sparring hors effectif est refusé, même pour l'admin.
+  await assertFails(
+    updateDoc(doc(as(ADMIN), `clubs/${CLUB}/teams/teamA`), {
+      sparringIds: [PLAYER.uid, OTHER_PLAYER.uid],
+    }),
+  );
+  await assertFails(
+    setDoc(doc(as(ADMIN), `clubs/${CLUB}/teams/teamS`), {
+      name: "S",
+      playerIds: [],
+      sparringIds: [PLAYER.uid],
+    }),
+  );
+  await assertFails(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/teams/teamB`), { sparringIds: [] }),
+  );
+  await setCoachPermissions({ canManageTeamRoster: false });
+  await assertFails(
+    updateDoc(doc(as(COACH), `clubs/${CLUB}/teams/teamA`), { sparringIds: [] }),
+  );
+  await assertSucceeds(
+    updateDoc(doc(as(ADMIN), `clubs/${CLUB}/teams/teamA`), { sparringIds: [] }),
+  );
+  // Retirer un sparring de l'effectif : refusé sans nettoyer `sparringIds`,
+  // accepté quand la même écriture le retire des sparrings.
+  await assertSucceeds(
+    updateDoc(doc(as(ADMIN), `clubs/${CLUB}/teams/teamA`), { sparringIds: [PLAYER.uid] }),
+  );
+  await assertFails(
+    updateDoc(doc(as(ADMIN), `clubs/${CLUB}/teams/teamA`), { playerIds: [] }),
+  );
+  await assertSucceeds(
+    updateDoc(doc(as(ADMIN), `clubs/${CLUB}/teams/teamA`), {
+      playerIds: [],
+      sparringIds: [],
+    }),
+  );
+});
+
 test("lien fédération : écrit par les Functions seulement, classement lisible par le club", async () => {
   await assertFails(
     updateDoc(doc(as(COACH), `clubs/${CLUB}/teams/teamA`), {

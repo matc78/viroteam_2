@@ -187,8 +187,19 @@ export async function removeMemberFromTeam(params: {
     const currentIds = parseStringIds(teamData[field]);
     const nextIds = currentIds.filter((id) => id !== params.memberId);
     const rosterChanged = nextIds.length !== currentIds.length;
+    // Un joueur retiré cesse aussi d’être sparring (`sparringIds` ⊆ joueurs).
+    const sparringIds = parseStringIds(teamData[Fields.sparringIds]);
+    const dropSparring =
+      field === Fields.playerIds && sparringIds.includes(params.memberId);
     tx.update(teamDocument, {
       [field]: nextIds,
+      ...(dropSparring
+        ? {
+            [Fields.sparringIds]: sparringIds.filter(
+              (id) => id !== params.memberId,
+            ),
+          }
+        : {}),
       [Fields.updatedAt]: serverTimestamp(),
     });
 
@@ -214,6 +225,39 @@ export async function removeMemberFromTeam(params: {
       audienceId: params.memberId,
     });
   }
+}
+
+/**
+ * Passe un joueur en sparring (`sparring` = true) ou le repasse joueur. Il doit
+ * être dans `playerIds` ; les convocations des matchs à venir suivent par le
+ * trigger `onTeamWritten`.
+ */
+export async function setTeamPlayerSparring(params: {
+  clubId: string;
+  teamId: string;
+  memberId: string;
+  sparring: boolean;
+}): Promise<void> {
+  const db = getAppFirestore();
+  const teamDocument = doc(teamsCol(params.clubId), params.teamId);
+  await runTransaction(db, async (tx) => {
+    const teamSnap = await tx.get(teamDocument);
+    if (!teamSnap.exists()) {
+      throw new Error("Équipe introuvable.");
+    }
+    const teamData = teamSnap.data() as Record<string, unknown>;
+    if (!parseStringIds(teamData[Fields.playerIds]).includes(params.memberId)) {
+      throw new Error("Ce membre n’est pas joueur de l’équipe.");
+    }
+    const current = parseStringIds(teamData[Fields.sparringIds]);
+    if (current.includes(params.memberId) === params.sparring) return;
+    tx.update(teamDocument, {
+      [Fields.sparringIds]: params.sparring
+        ? [...current, params.memberId]
+        : current.filter((id) => id !== params.memberId),
+      [Fields.updatedAt]: serverTimestamp(),
+    });
+  });
 }
 
 /**

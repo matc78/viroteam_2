@@ -40,6 +40,17 @@
   --role-color: var(--color-role-parent);
 }
 
+/* Sparring : gris argent, liseré métallique pour le distinguer de Membre. */
+.badge[data-tone="sparring"] {
+  --role-color: var(--color-role-sparring);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--role-color) 10%, var(--surface-card)),
+    color-mix(in srgb, var(--role-color) 28%, var(--surface-card))
+  );
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--role-color) 45%, transparent);
+}
+
 .badgeIcon {
   display: inline-flex;
   align-items: center;

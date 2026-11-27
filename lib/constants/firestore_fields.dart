@@ -155,6 +155,10 @@ abstract final class FirestoreFields {
   static const String playerIds = 'playerIds';
   static const String coachIds = 'coachIds';
   static const String pendingPlayerIds = 'pendingPlayerIds';
+
+  /// Sparrings d'une équipe (sous-ensemble de `playerIds`) : non convoqués
+  /// par défaut aux matchs.
+  static const String sparringIds = 'sparringIds';
   static const String messagingLink = 'messagingLink';
   static const String parentsMessagingLink = 'parentsMessagingLink';
 

@@ -16,6 +16,7 @@ import transitionStyles from "@/components/dashboard/DashboardPageTransition.mod
 import tabStyles from "@/components/dashboard/MembersTabs.module.css";
 import { useToast } from "@/components/ToastProvider";
 import {
+  canAddPlayerToTeam,
   canSeeMemberContact,
   membersVisibleToViewer,
   teamsVisibleToViewer,
@@ -68,6 +69,7 @@ import {
   addMemberToTeam,
   createTeam,
   removeMemberFromTeam,
+  setTeamPlayerSparring,
   updateTeam,
 } from "@/lib/firebase/teamService";
 import {
@@ -404,6 +406,29 @@ export function MembersPageClient() {
       {
         errorFallback: "Envoi de l’invitation impossible.",
         surfaceErrorInPanel: false,
+      },
+    );
+  }
+
+  /** Passe le membre sélectionné sparring de [teamId] ou le repasse joueur. */
+  async function handleSetSparring(teamId: string, sparring: boolean) {
+    if (!activeClub || !selectedMember) return;
+    if (!canAddPlayerToTeam(caps.access, teamId)) return;
+    await runMemberAction(
+      async () => {
+        await setTeamPlayerSparring({
+          clubId: activeClub.id,
+          teamId,
+          memberId: selectedMember.memberId,
+          sparring,
+        });
+        reload();
+      },
+      {
+        successMessage: sparring
+          ? "Passé en sparring : plus convoqué d’office aux matchs."
+          : "De retour joueur : reconvoqué aux matchs à venir.",
+        errorFallback: "Changement du statut sparring impossible.",
       },
     );
   }
@@ -1412,6 +1437,10 @@ export function MembersPageClient() {
             (!isAdminMember(selectedMember) || caps.isClubAdmin)
           }
           canManageParents={caps.canManageMembers}
+          canToggleSparring={(teamId) =>
+            canAddPlayerToTeam(caps.access, teamId)
+          }
+          onSetSparring={handleSetSparring}
           onClose={() => {
             setSelectedMemberId(null);
             setActionError(null);

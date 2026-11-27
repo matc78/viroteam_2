@@ -279,6 +279,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
       });
     }
 
+    _form.setKnownTeams(teams);
     final sortedTeams = addEventSortedTeams(teams, member);
     if (_form.teamId == null &&
         sortedTeams.isNotEmpty &&
@@ -351,6 +352,10 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                 accentColor: accent,
                 enabled: enabled,
                 onPlayerToggled: _form.togglePlayerConvoked,
+                sparringIds: {
+                  for (final team in teams)
+                    if (team.id == _form.teamId) ...team.sparringIds,
+                },
               ),
             if (EventTypes.isTeamless(_form.type))
               AddEventAudienceSection(

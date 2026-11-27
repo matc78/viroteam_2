@@ -32,6 +32,8 @@ class MemberListTile extends StatelessWidget {
     required this.club,
     this.onEditRights,
     this.onRemove,
+    this.onToggleSparring,
+    this.isSparring = false,
     this.onInviteParent,
     this.onSendEmailInvite,
     this.onTap,
@@ -52,6 +54,12 @@ class MemberListTile extends StatelessWidget {
   /// Ouvre l'attribution des droits (droit Administrateur du lecteur).
   final VoidCallback? onEditRights;
   final VoidCallback? onRemove;
+
+  /// Bascule joueur ↔ sparring (ligne d'effectif [embedded] seulement).
+  final VoidCallback? onToggleSparring;
+
+  /// Le joueur est sparring de l'équipe affichée (infobulle de la bascule).
+  final bool isSparring;
   final VoidCallback? onInviteParent;
   final Future<bool> Function()? onSendEmailInvite;
   final VoidCallback? onTap;
@@ -202,6 +210,18 @@ class MemberListTile extends StatelessWidget {
               icon: ViroIcon(ViroIcons.copy, color: accent),
               tooltip: AppCopy.members.copyInviteCodeTooltip,
               onPressed: () => _copyInvite(context),
+            ),
+          if (!selectionMode && embedded && onToggleSparring != null)
+            IconButton(
+              icon: ViroIcon(
+                ViroIcons.sparringToggle,
+                color: palette.textMuted,
+                size: 20,
+              ),
+              onPressed: onToggleSparring,
+              tooltip: isSparring
+                  ? AppCopy.teams.makePlayerTooltip
+                  : AppCopy.teams.makeSparringTooltip,
             ),
           if (!selectionMode && embedded && onRemove != null)
             IconButton(

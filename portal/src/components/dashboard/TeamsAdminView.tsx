@@ -68,6 +68,11 @@ type TeamsAdminViewProps = {
     memberId: string;
     role: TeamRosterRole;
   }) => Promise<void>;
+  onSetSparring: (params: {
+    teamId: string;
+    memberId: string;
+    sparring: boolean;
+  }) => Promise<void>;
 };
 
 /** Pluriel simple (« 1 équipe », « 3 équipes »). */
@@ -117,6 +122,7 @@ export function TeamsAdminView({
   onDeleteTeam,
   onAddMember,
   onRemoveMember,
+  onSetSparring,
 }: TeamsAdminViewProps) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState(ALL_CATEGORIES);
@@ -496,6 +502,7 @@ export function TeamsAdminView({
           canManageCoaches={canManageTeams}
           canAddPlayer={canAddPlayerToTeam(selectedTeam)}
           canRemovePlayer={canManageTeams}
+          canToggleSparring={canAddPlayerToTeam(selectedTeam)}
           canShareInvite={canShareTeamInvite(selectedTeam)}
           onClose={() => {
             setSelectedTeamId(null);
@@ -512,6 +519,9 @@ export function TeamsAdminView({
           }}
           onRemoveMember={(memberId, role) =>
             onRemoveMember({ teamId: selectedTeam.id, memberId, role })
+          }
+          onSetSparring={(memberId, sparring) =>
+            onSetSparring({ teamId: selectedTeam.id, memberId, sparring })
           }
           onDelete={async () => {
             const deleted = await onDeleteTeam(selectedTeam.id);

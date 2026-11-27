@@ -1,6 +1,7 @@
 "use client";
 
 import { MemberAvatar } from "@/components/dashboard/MemberAvatar";
+import { RoleBadge } from "@/components/dashboard/RoleBadge";
 import { convocationsCopy } from "@/lib/copy/convocationsCopy";
 import styles from "./ConvocationChecklist.module.css";
 
@@ -9,6 +10,8 @@ export type ConvocationChecklistItem = {
   key: string;
   name: string;
   avatarUrl: string | null;
+  /** Joueur sparring de l’équipe : badge sur la ligne. */
+  sparring?: boolean;
 };
 
 /** Props de la liste à cocher des convoqués. */
@@ -132,6 +135,9 @@ export function ConvocationChecklist({
                       tone="offwhite"
                     />
                     <span className={styles.name}>{item.name}</span>
+                    {item.sparring ? (
+                      <RoleBadge role="sparring" size="sm" />
+                    ) : null}
                   </label>
                 </li>
               );

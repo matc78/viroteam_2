@@ -50,6 +50,7 @@ final class AppCopyCommon {
   String get roleParent => 'Parent';
   String get roleAdmin => 'Admin';
   String get roleMember => 'Membre';
+  String get roleSparring => 'Sparring';
 
   String get errorRetry => 'Oups, ça n’a pas passé. Réessaie dans un instant.';
   String errorWithDetails(Object error) => 'Oups : $error';

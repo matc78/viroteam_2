@@ -12,6 +12,8 @@ export type ConvocationChecklistItem = {
   avatarUrl: string | null;
   /** Joueur sparring de l’équipe : badge sur la ligne. */
   sparring?: boolean;
+  /** Ligne non modifiable (garde son état, même avec tout cocher / décocher). */
+  locked?: boolean;
 };
 
 /** Props de la liste à cocher des convoqués. */
@@ -48,6 +50,13 @@ export function ConvocationChecklist({
 }: ConvocationChecklistProps) {
   const hintId = `${idPrefix}-hint`;
   const checkedCount = items.filter((item) => checkedKeys.has(item.key)).length;
+  // Lignes verrouillées : leur état ne bouge pas avec tout cocher / décocher.
+  const maxCheckable = items.filter(
+    (item) => !item.locked || checkedKeys.has(item.key),
+  ).length;
+  const minChecked = items.filter(
+    (item) => item.locked && checkedKeys.has(item.key),
+  ).length;
   const describedBy =
     [hint ? hintId : null, invalid && errorId ? errorId : null]
       .filter(Boolean)
@@ -61,7 +70,12 @@ export function ConvocationChecklist({
   }
 
   function setAll(checked: boolean) {
-    onChange(checked ? new Set(items.map((item) => item.key)) : new Set());
+    const next = new Set<string>();
+    for (const item of items) {
+      const keep = item.locked ? checkedKeys.has(item.key) : checked;
+      if (keep) next.add(item.key);
+    }
+    onChange(next);
   }
 
   return (
@@ -94,7 +108,7 @@ export function ConvocationChecklist({
               type="button"
               className={styles.bulkButton}
               onClick={() => setAll(true)}
-              disabled={disabled || checkedCount === items.length}
+              disabled={disabled || checkedCount === maxCheckable}
             >
               {convocationsCopy.checkAll}
             </button>
@@ -102,7 +116,7 @@ export function ConvocationChecklist({
               type="button"
               className={styles.bulkButton}
               onClick={() => setAll(false)}
-              disabled={disabled || checkedCount === 0}
+              disabled={disabled || checkedCount === minChecked}
             >
               {convocationsCopy.uncheckAll}
             </button>
@@ -122,6 +136,7 @@ export function ConvocationChecklist({
                       id={inputId}
                       type="checkbox"
                       checked={checked}
+                      disabled={item.locked || undefined}
                       onChange={(changeEvent) =>
                         toggle(item.key, changeEvent.target.checked)
                       }

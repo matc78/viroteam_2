@@ -10,6 +10,7 @@ import transitionStyles from "@/components/dashboard/DashboardPageTransition.mod
 import { useToast } from "@/components/ToastProvider";
 import {
   canAddPlayerToTeam,
+  canManageTeamFederation,
   canShareTeamInvite,
   membersVisibleToViewer,
   teamsVisibleToViewer,
@@ -287,6 +288,9 @@ function TeamsPageContent() {
           canManageTeams={caps.canManageTeams}
           canAddPlayerToTeam={(team) =>
             canAddPlayerToTeam(caps.access, team.id)
+          }
+          canManageTeamFederation={(team) =>
+            canManageTeamFederation(caps.access, team.id)
           }
           canShareTeamInvite={(team) =>
             canShareTeamInvite(caps.access, team.id)

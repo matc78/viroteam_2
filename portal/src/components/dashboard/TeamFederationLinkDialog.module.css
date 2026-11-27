@@ -1,0 +1,160 @@
+/* Dialog de liaison d’une équipe à sa poule FFVB. */
+.panel {
+  width: min(100%, 30rem);
+  max-height: calc(100vh - 2 * var(--space-lg));
+}
+
+.body {
+  overflow-y: auto;
+}
+
+.later {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+}
+
+/* Vignette d’exemple de la page calendrier. */
+.example {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.exampleThumb,
+.exampleFull {
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-card);
+  overflow: hidden;
+  cursor: zoom-in;
+}
+
+.exampleThumb img {
+  display: block;
+  width: 7rem;
+  height: 4.9rem;
+  object-fit: cover;
+  object-position: top center;
+}
+
+.exampleFull {
+  width: 100%;
+  cursor: zoom-out;
+}
+
+.exampleFull img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.exampleThumb:focus-visible,
+.exampleFull:focus-visible,
+.teamOption:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.exampleCaption {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.urlForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.input {
+  min-height: 2.5rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--font-size-md);
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+.input[aria-invalid="true"] {
+  border-color: var(--status-danger);
+}
+
+.poolLabel {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.teamFieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.teamLegend {
+  padding: 0;
+  margin-bottom: 0.35rem;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.teamList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.teamOption {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.teamOption:hover {
+  background: var(--surface-hover);
+}
+
+.teamOption[data-selected="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.teamOption input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.teamOption input:focus-visible {
+  outline: none;
+}

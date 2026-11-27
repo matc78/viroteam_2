@@ -16,6 +16,7 @@ import {
 
 export {
   canAddPlayerToTeam,
+  canManageTeamFederation,
   canShareTeamInvite,
 } from "@/lib/auth/permissions";
 

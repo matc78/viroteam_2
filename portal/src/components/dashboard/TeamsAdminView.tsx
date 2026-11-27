@@ -19,6 +19,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { TeamOption } from "@/lib/firebase/eventService";
 import type { ClubMemberRecord } from "@/lib/firebase/memberService";
 import type { TeamRosterRole } from "@/lib/firebase/teamService";
+import { isVolleyballSport } from "@/lib/standings/standingsTypes";
 import {
   ALL_CATEGORIES,
   buildTeamListGroups,
@@ -55,6 +56,8 @@ type TeamsAdminViewProps = {
   canManageTeams: boolean;
   canAddPlayerToTeam: (team: TeamOption) => boolean;
   canShareTeamInvite: (team: TeamOption) => boolean;
+  /** Actualiser / délier le lien FFVB (clubs de volley). */
+  canManageTeamFederation: (team: TeamOption) => boolean;
   onClearError: () => void;
   onCreateTeam: (values: TeamFormValues) => Promise<void>;
   onUpdateTeam: (teamId: string, values: TeamFormValues) => Promise<void>;
@@ -117,6 +120,7 @@ export function TeamsAdminView({
   canManageTeams,
   canAddPlayerToTeam,
   canShareTeamInvite,
+  canManageTeamFederation,
   onClearError,
   onCreateTeam,
   onUpdateTeam,
@@ -530,6 +534,14 @@ export function TeamsAdminView({
           canRemovePlayer={canManageTeams}
           canToggleSparring={canAddPlayerToTeam(selectedTeam)}
           canShareInvite={canShareTeamInvite(selectedTeam)}
+          federation={
+            isVolleyballSport(sport)
+              ? {
+                  clubId,
+                  canManage: canManageTeamFederation(selectedTeam),
+                }
+              : null
+          }
           onClose={() => {
             setSelectedTeamId(null);
             onClearError();

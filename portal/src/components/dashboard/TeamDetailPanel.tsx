@@ -16,6 +16,7 @@ import {
 import { useDialogA11y } from "@/lib/ui/useDialogA11y";
 import { MemberAvatar } from "./MemberAvatar";
 import { RoleBadge } from "./RoleBadge";
+import { TeamFederationSection } from "./TeamFederationSection";
 import styles from "./TeamDetailPanel.module.css";
 
 /** Au-delà, un champ filtre la liste des joueurs du panneau. */
@@ -53,6 +54,8 @@ type TeamDetailPanelProps = {
   /** Passer un joueur sparring / le repasser joueur. */
   canToggleSparring: boolean;
   canShareInvite: boolean;
+  /** Section Calendrier FFVB (clubs de volley), `null` sinon. */
+  federation: { clubId: string; canManage: boolean } | null;
   onClose: () => void;
   onEdit: () => void;
   onInvite: () => void;
@@ -108,6 +111,7 @@ export function TeamDetailPanel({
   canRemovePlayer,
   canToggleSparring,
   canShareInvite,
+  federation,
   onClose,
   onEdit,
   onInvite,
@@ -484,6 +488,18 @@ export function TeamDetailPanel({
               </p>
             ) : null}
           </section>
+        ) : null}
+
+        {federation ? (
+          <TeamFederationSection
+            // Une section par équipe : aucun état (requête, message) ne passe
+            // d’une équipe à l’autre.
+            key={team.id}
+            clubId={federation.clubId}
+            team={team}
+            membersById={membersById}
+            canManage={federation.canManage}
+          />
         ) : null}
 
         {canDelete ? (

@@ -15,6 +15,7 @@ import {
   canEditMemberRsvp,
   canManageEvent,
   canManageEventAudience,
+  canManageTeamFederation,
   canPublishAnnouncementToTeams,
   canWriteStaffChannels,
   derivedBadges,
@@ -169,6 +170,8 @@ describe("ClubAccess", () => {
     expect(can(treasurer, "manageMembers")).toBe(false);
     expect(treasurer.isStaff).toBe(true);
     expect(treasurer.isTeamCoach).toBe(false);
+    expect(canManageTeamFederation(treasurer, "a")).toBe(false);
+    expect(canManageTeamFederation(buildClubAccess({ permissions: ["manageTeams"] }), "a")).toBe(true);
   });
 
   it("le coach agit sur ses équipes seulement", () => {
@@ -177,6 +180,8 @@ describe("ClubAccess", () => {
     expect(canManageEvent(coach, { teamIds: ["b"] })).toBe(false);
     expect(canAddPlayerToTeam(coach, "a")).toBe(true);
     expect(canAddPlayerToTeam(coach, "b")).toBe(false);
+    expect(canManageTeamFederation(coach, "a")).toBe(true);
+    expect(canManageTeamFederation(coach, "b")).toBe(false);
     expect(canPublishAnnouncementToTeams(coach, ["a"])).toBe(true);
     expect(canPublishAnnouncementToTeams(coach, ["a", "b"])).toBe(false);
     expect(canWriteStaffChannels(coach)).toBe(true);

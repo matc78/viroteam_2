@@ -319,6 +319,78 @@
 .panel[data-tone="red"] { --team-tone: var(--tone-red); }
 .panel[data-tone="slate"] { --team-tone: var(--tone-slate); }
 
+/* Section Calendrier FFVB (`TeamFederationSection`). */
+.section .error {
+  margin: 0;
+}
+
+.federationActions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.federationActions .dangerTrigger {
+  color: var(--status-danger-text);
+}
+
+.federationActions .dangerTrigger:hover:not(:disabled) {
+  background: var(--status-danger-soft);
+}
+
+.federationBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.federationPool {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.federationLink {
+  width: fit-content;
+  font-size: var(--font-size-sm);
+  color: var(--accent-text);
+}
+
+.federationConfirm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--status-danger-soft);
+}
+
+.federationCheck {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.federationCheck input {
+  margin-top: 0.2rem;
+}
+
+.federationHint {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.federationNotice {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--status-success-text);
+}
+
 /* Ajouter (coach / joueur) : bouton icône détouré, libellé accessible. */
 .addButton {
   display: inline-flex;

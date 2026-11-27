@@ -24,6 +24,8 @@ export class CallableError extends Error {
   constructor(
     message: string,
     readonly reason: string | null,
+    /** Code Functions sans préfixe (`internal`, `resource-exhausted`…). */
+    readonly code: string | null = null,
   ) {
     super(message);
     this.name = "CallableError";
@@ -46,20 +48,61 @@ function unwrapCallableError(error: unknown): Error {
       details && typeof details === "object" && "reason" in details
         ? String((details as { reason?: unknown }).reason ?? "") || null
         : null;
-    return new CallableError(message || "Action impossible.", reason);
+    return new CallableError(
+      message || "Action impossible.",
+      reason,
+      error.code.replace(/^functions\//, ""),
+    );
   }
   if (error instanceof Error) return error;
   return new Error("Action impossible.");
 }
 
+/** Codes dont le message n’est pas lisible par un utilisateur. */
+const TECHNICAL_CALLABLE_CODES = new Set([
+  "unknown",
+  "internal",
+  "unavailable",
+  "deadline-exceeded",
+  "resource-exhausted",
+  "cancelled",
+]);
+
+/**
+ * Message à afficher pour une erreur de callable : le message métier (en
+ * français, écrit par les Functions), sinon [fallback] pour les erreurs
+ * techniques (codes réseau / serveur, libellés bruts). [byCode] remplace
+ * le repli pour un code donné (ex. `resource-exhausted` → « trop tôt »).
+ * Aligné sur `callableErrorMessage` de l’app.
+ */
+export function callableErrorMessage(
+  error: unknown,
+  fallback: string,
+  byCode: Partial<Record<string, string>> = {},
+): string {
+  if (error instanceof CallableError && error.code) {
+    const specific = byCode[error.code];
+    if (specific) return specific;
+    if (TECHNICAL_CALLABLE_CODES.has(error.code)) return fallback;
+  }
+  const message = error instanceof Error ? error.message.trim() : "";
+  // Libellés bruts (`NOT FOUND`, `internal`) : pas un message utilisateur.
+  if (!message || /^[A-Z _]+$/.test(message) || /^[a-z-]+$/.test(message)) {
+    return fallback;
+  }
+  return message;
+}
+
 async function callFunction<TReq, TRes>(
   name: string,
   payload: TReq,
+  options: { timeoutMs?: number } = {},
 ): Promise<TRes> {
   try {
     const callable = httpsCallable<TReq, TRes>(
       functionsClient(),
       cloudCallableName(name),
+      options.timeoutMs ? { timeout: options.timeoutMs } : undefined,
     );
     const result = await callable(payload);
     return result.data;
@@ -469,4 +512,76 @@ export async function ensureClubChatSynced(params: {
   clubId: string;
 }): Promise<{ teamsSynced: number }> {
   return callFunction("ensureClubChatSynced", params);
+}
+
+/**
+ * Attente côté client d’un import / d’une synchro FFVB : au-delà des 120 s
+ * de la callable, pour ne pas annoncer un échec pendant que le serveur finit.
+ */
+const FEDERATION_SYNC_TIMEOUT_MS = 150_000;
+
+/** Bilan d’une synchro FFVB (matchs du planning créés / modifiés). */
+export type TeamFederationSyncReport = {
+  created: number;
+  updated: number;
+  unchanged: number;
+  missing: number;
+};
+
+/**
+ * Actualise maintenant le calendrier FFVB d’une équipe (gestionnaire
+ * d’équipes ou coach de l’équipe). Une fois toutes les 10 minutes par équipe.
+ */
+export async function refreshTeamFederation(params: {
+  clubId: string;
+  teamId: string;
+}): Promise<TeamFederationSyncReport> {
+  return callFunction("refreshTeamFederation", params, {
+    timeoutMs: FEDERATION_SYNC_TIMEOUT_MS,
+  });
+}
+
+/** Poule FFVB vérifiée par `previewFederationLink` (rien n’est écrit). */
+export type FederationLinkPreview = {
+  poolLabel: string;
+  /** Équipes de la poule, par rang si le classement existe. */
+  teams: { key: string; name: string }[];
+};
+
+/** Vérifie un lien de poule FFVB et liste ses équipes. */
+export async function previewFederationLink(params: {
+  clubId: string;
+  teamId: string;
+  url: string;
+}): Promise<FederationLinkPreview> {
+  return callFunction("previewFederationLink", params);
+}
+
+/**
+ * Lie l’équipe à sa poule FFVB et importe la saison sans notifier.
+ * `excludedMemberIds` : joueurs non convoqués par défaut sur les matchs
+ * importés et sur ceux ajoutés par les synchros suivantes.
+ */
+export async function linkTeamFederation(params: {
+  clubId: string;
+  teamId: string;
+  url: string;
+  teamKey: string;
+  excludedMemberIds: string[];
+}): Promise<TeamFederationSyncReport> {
+  return callFunction("linkTeamFederation", params, {
+    timeoutMs: FEDERATION_SYNC_TIMEOUT_MS,
+  });
+}
+
+/**
+ * Délie l’équipe de sa poule FFVB : supprime le lien et le classement.
+ * `deleteImportedMatches` retire aussi les matchs importés (lien erroné).
+ */
+export async function unlinkTeamFederation(params: {
+  clubId: string;
+  teamId: string;
+  deleteImportedMatches: boolean;
+}): Promise<{ ok: boolean; deletedMatches: number }> {
+  return callFunction("unlinkTeamFederation", params);
 }

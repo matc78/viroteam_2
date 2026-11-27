@@ -300,6 +300,17 @@ export function canShareTeamInvite(access: ClubAccess, teamId: string): boolean 
   );
 }
 
+/**
+ * Gérer le lien FFVB de l'équipe `teamId` (actualiser, délier) : droit
+ * équipes ou coach de l'équipe (même règle que `assertCanManageFederation`).
+ */
+export function canManageTeamFederation(
+  access: ClubAccess,
+  teamId: string,
+): boolean {
+  return can(access, "manageTeams") || access.coachTeamIds.includes(teamId);
+}
+
 /** Peut créer un événement pour au moins une équipe. */
 export function canCreateEvents(access: ClubAccess): boolean {
   return can(access, "manageEvents") || coachCan(access, "canCreateEvents");

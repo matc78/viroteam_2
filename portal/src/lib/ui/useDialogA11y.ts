@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type RefObject } from "react";
+import { isScrollAllowedUnderModal, lockScroll } from "./scrollLock";
 
 const FOCUSABLE_SELECTOR = [
   "a[href]",
@@ -48,7 +49,8 @@ type UseDialogA11yOptions = {
 };
 
 /**
- * Accessibilité dialog : focus initial, Tab cyclique, Escape, restore focus.
+ * Accessibilité dialog : focus initial, Tab cyclique, Escape, restore focus ;
+ * une modale bloque en plus le défilement de la page derrière.
  *
  * Les dialogs empilés (ex. overlay chat dans FloatingThread) : seul le sommet
  * de pile reçoit Escape et le piège Tab ; un dialog non modal (`modal: false`)
@@ -93,6 +95,25 @@ export function useDialogA11y({
           return false;
         }
         return true;
+      });
+    }
+
+    // Modale : la page derrière ne défile plus (molette, tactile), y compris
+    // un conteneur interne (pages pleine hauteur : planning, messagerie).
+    const releaseScroll = modal
+      ? lockScroll(document.documentElement, window.innerWidth, {
+          stableGutter: CSS.supports("scrollbar-gutter", "stable"),
+        })
+      : null;
+    const blockOutsideScroll = (scrollEvent: Event) => {
+      if (dialogStack[dialogStack.length - 1] !== stackEntry) return;
+      if (isScrollAllowedUnderModal(scrollEvent.target, dialogRoot)) return;
+      scrollEvent.preventDefault();
+    };
+    if (modal) {
+      document.addEventListener("wheel", blockOutsideScroll, { passive: false });
+      document.addEventListener("touchmove", blockOutsideScroll, {
+        passive: false,
       });
     }
 
@@ -148,6 +169,9 @@ export function useDialogA11y({
     return () => {
       window.cancelAnimationFrame(focusTimer);
       document.removeEventListener("keydown", onKeyDown, true);
+      releaseScroll?.();
+      document.removeEventListener("wheel", blockOutsideScroll);
+      document.removeEventListener("touchmove", blockOutsideScroll);
       const index = dialogStack.indexOf(stackEntry);
       if (index >= 0) dialogStack.splice(index, 1);
       if (

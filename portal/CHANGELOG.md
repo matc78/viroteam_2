@@ -17,6 +17,10 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 - Équipes : fond léger des cartes et titre de colonne teintés selon la catégorie — même couleur sur `/teams`, `/team` et `/family/team`, une couleur distincte par catégorie du club
 - Indicateurs « à faire » cliquables jusqu’à l’action : Équipes — « N à compléter » d’une catégorie (filtre ses équipes incomplètes), puces « Sans coach » / « Aucun joueur » du panneau d’une équipe (ouvrent l’ajout du coach / joueur) ; Cotisations — tuiles **Reste dû** / **À traiter** et puce « aides à valider » (basculent la vue du suivi). `StatTile` et `StatusBadge` acceptent `onClick`
 
+### Corrigé
+
+- Dialogs modaux (`useDialogA11y`) : la page derrière ne défile plus à la molette ou au doigt tant qu’une modale est ouverte (verrou partagé par les modales empilées, barre de défilement compensée) ; la liste des convoqués ne fait plus défiler le dialog une fois arrivée en bout
+
 ### Modifié
 
 - Paramètres club : intro des droits coach précisée (« uniquement sur les équipes qu’il entraîne ») ; descriptions des toggles raccourcies

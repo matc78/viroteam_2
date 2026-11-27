@@ -612,11 +612,31 @@ export function FeesTrackingPanel({
     }
   }
 
+  /**
+   * Tuile du résumé : bascule la vue de suivi, sans les filtres secondaires
+   * (la tuile compte toutes les fiches), et défile jusqu’au tableau.
+   */
+  function showStatusView(view: FeesStatusView) {
+    setStatusView(view);
+    setSearch("");
+    setTierFilter("all");
+    setSportCategoryFilters([]);
+    setTeamFilters([]);
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    document
+      .getElementById("fees-tracking-title")
+      ?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+  }
+
   return (
     <>
       <FeesOverview
         rows={data.rows}
         showCardPayments={club.onlinePaymentEnabled === true}
+        onShowRemaining={() => showStatusView("due")}
+        onShowNeedsAction={() => showStatusView("pending")}
       />
       <section
         className={`${panelStyles.panel} ${styles.section}`}
@@ -684,10 +704,18 @@ export function FeesTrackingPanel({
               <strong>{data.counts.paid}</strong> à jour
             </button>
             {data.counts.pendingAids > 0 ? (
-              <span className={styles.summaryChip} data-tone="aid">
+              // Les aides en attente font partie de « à traiter ».
+              <button
+                type="button"
+                className={styles.summaryChip}
+                data-tone="aid"
+                aria-pressed={statusView === "pending"}
+                title="Afficher les fiches à traiter"
+                onClick={() => setStatusView("pending")}
+              >
                 <strong>{data.counts.pendingAids}</strong> aide
                 {data.counts.pendingAids > 1 ? "s" : ""} à valider
-              </span>
+              </button>
             ) : null}
           </div>
           {!readOnly && smartApplyCandidates.length > 0 ? (

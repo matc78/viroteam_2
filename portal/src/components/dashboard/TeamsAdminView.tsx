@@ -15,6 +15,7 @@ import { Icon } from "@/components/ui/icons";
 import { ListRow, ListRows } from "@/components/ui/ListRow";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SegmentedChoice } from "@/components/ui/SegmentedChoice";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { TeamOption } from "@/lib/firebase/eventService";
 import type { ClubMemberRecord } from "@/lib/firebase/memberService";
 import type { TeamRosterRole } from "@/lib/firebase/teamService";
@@ -200,6 +201,19 @@ export function TeamsAdminView({
     setHealthFilter("all");
   }
 
+  /** « N à compléter » d’une catégorie : n’affiche que ses équipes incomplètes. */
+  function showIncompleteInCategory(groupCategory: string) {
+    setHealthFilter("incomplete");
+    setCategory(
+      groupCategory === NO_CATEGORY_LABEL ? NO_CATEGORY : groupCategory,
+    );
+    setCollapsed((current) => {
+      const next = new Set(current);
+      next.delete(groupCategory);
+      return next;
+    });
+  }
+
   /** Ligne d’une équipe : nom, coachs (ou membres trouvés), alertes, effectif. */
   function renderRow(entry: TeamListEntry) {
     const { team, issues, matchedMemberNames } = entry;
@@ -229,6 +243,8 @@ export function TeamsAdminView({
         meta={meta ?? undefined}
         trailing={
           <>
+            {/* Alertes en texte : la ligne est déjà un bouton ; le panneau
+                qu’elle ouvre porte les mêmes alertes, cliquables. */}
             {issues.includes("noCoach") && canManageTeams ? (
               <span className={styles.issue}>Sans coach</span>
             ) : null}
@@ -457,6 +473,9 @@ export function TeamsAdminView({
                   <button
                     type="button"
                     className={styles.groupToggle}
+                    data-has-issues={
+                      canManageTeams && incompleteInGroup > 0 ? "true" : undefined
+                    }
                     aria-expanded={!isCollapsed}
                     onClick={() => toggleGroup(group.category)}
                   >
@@ -470,12 +489,19 @@ export function TeamsAdminView({
                     <span className={styles.groupCount}>
                       {countLabel(group.entries.length, "équipe")}
                     </span>
-                    {canManageTeams && incompleteInGroup > 0 ? (
-                      <span className={`${styles.issue} ${styles.groupIssues}`}>
-                        {incompleteInGroup} à compléter
-                      </span>
-                    ) : null}
                   </button>
+                  {canManageTeams && incompleteInGroup > 0 ? (
+                    <span className={styles.groupIssues}>
+                      <StatusBadge
+                        tone="warning"
+                        dot
+                        onClick={() => showIncompleteInCategory(group.category)}
+                        actionLabel={`${incompleteInGroup} à compléter : afficher les équipes ${group.category} à compléter`}
+                      >
+                        {incompleteInGroup} à compléter
+                      </StatusBadge>
+                    </span>
+                  ) : null}
                 </h2>
                 {isCollapsed ? null : (
                   <ListRows aria-label={`Équipes ${group.category}`}>

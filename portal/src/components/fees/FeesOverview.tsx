@@ -22,10 +22,16 @@ function formatEuros(cents: number): string {
 export function FeesOverview({
   rows,
   showCardPayments,
+  onShowRemaining,
+  onShowNeedsAction,
 }: {
   rows: FeeTrackingRow[];
   /** Paiement en ligne activé : affiche la série CB du graphique. */
   showCardPayments: boolean;
+  /** Tuile « Reste dû » : affiche les fiches avec un reste à payer. */
+  onShowRemaining?: () => void;
+  /** Tuile « À traiter » : affiche les fiches qui attendent une action. */
+  onShowNeedsAction?: () => void;
 }) {
   const summary = useMemo(() => {
     let collected = 0;
@@ -66,6 +72,7 @@ export function FeesOverview({
           value={formatEuros(summary.remaining)}
           hint="À encaisser"
           tone={summary.remaining > 0 ? "warning" : "success"}
+          onClick={summary.remaining > 0 ? onShowRemaining : undefined}
         />
         <StatTile
           label="Fiches soldées"
@@ -77,6 +84,7 @@ export function FeesOverview({
           value={summary.needsAction}
           hint="Paiements ou aides en attente"
           tone={summary.needsAction > 0 ? "warning" : "neutral"}
+          onClick={summary.needsAction > 0 ? onShowNeedsAction : undefined}
         />
       </StatGrid>
       <CollectionsChart

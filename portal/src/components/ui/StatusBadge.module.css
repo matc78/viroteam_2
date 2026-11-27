@@ -40,6 +40,28 @@
   --badge-dot: var(--status-danger);
 }
 
+.action {
+  border: 1px solid transparent;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 140ms ease;
+}
+
+.action:hover {
+  border-color: var(--badge-dot);
+}
+
+.action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.chevron {
+  margin-left: -0.1rem;
+  font-size: 1.1em;
+  line-height: 1;
+}
+
 .dot {
   width: 0.45rem;
   height: 0.45rem;

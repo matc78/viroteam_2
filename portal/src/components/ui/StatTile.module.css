@@ -55,6 +55,13 @@
     box-shadow 140ms ease;
 }
 
+.button {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .link:hover {
   border-color: var(--border-strong);
   box-shadow: var(--shadow-card);

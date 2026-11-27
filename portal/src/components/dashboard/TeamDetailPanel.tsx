@@ -354,20 +354,32 @@ export function TeamDetailPanel({
               Coachs <span className={styles.sectionCount}>{coaches.length}</span>
             </h3>
             {canManageCoaches ? (
-              <Button
-                size="sm"
-                variant="ghost"
+              <button
+                type="button"
+                className={styles.addButton}
                 disabled={busy}
                 onClick={() => onAddMember("coach")}
+                aria-label="Ajouter un coach"
+                title="Ajouter un coach"
               >
                 <Icon name="plus" size={16} />
-                Ajouter
-              </Button>
+              </button>
             ) : null}
           </div>
           {coaches.length === 0 ? (
             <p className={styles.empty}>
-              <StatusBadge tone="warning" dot>
+              <StatusBadge
+                tone="warning"
+                dot
+                onClick={
+                  canManageCoaches && !busy
+                    ? () => onAddMember("coach")
+                    : undefined
+                }
+                actionLabel={
+                  canManageCoaches ? "Sans coach : ajouter un coach" : undefined
+                }
+              >
                 Sans coach
               </StatusBadge>
             </p>
@@ -388,15 +400,16 @@ export function TeamDetailPanel({
               Joueurs <span className={styles.sectionCount}>{regularPlayerCount}</span>
             </h3>
             {canAddPlayer ? (
-              <Button
-                size="sm"
-                variant="ghost"
+              <button
+                type="button"
+                className={styles.addButton}
                 disabled={busy}
                 onClick={() => onAddMember("player")}
+                aria-label="Ajouter un joueur"
+                title="Ajouter un joueur"
               >
                 <Icon name="plus" size={16} />
-                Ajouter
-              </Button>
+              </button>
             ) : null}
           </div>
           {players.length > PLAYER_FILTER_THRESHOLD ? (
@@ -414,7 +427,18 @@ export function TeamDetailPanel({
           ) : null}
           {players.length === 0 ? (
             <p className={styles.empty}>
-              <StatusBadge tone="warning" dot>
+              <StatusBadge
+                tone="warning"
+                dot
+                onClick={
+                  canAddPlayer && !busy
+                    ? () => onAddMember("player")
+                    : undefined
+                }
+                actionLabel={
+                  canAddPlayer ? "Aucun joueur : ajouter un joueur" : undefined
+                }
+              >
                 Aucun joueur
               </StatusBadge>
             </p>

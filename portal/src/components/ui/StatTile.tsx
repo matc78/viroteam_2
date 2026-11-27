@@ -15,6 +15,11 @@ type StatTileProps = {
   tone?: StatusTone;
   /** Tuile cliquable vers la page détaillée. */
   href?: string;
+  /**
+   * Tuile cliquable sans navigation (filtre ou défile vers l’action à
+   * mener). Ignoré si `href`.
+   */
+  onClick?: () => void;
 };
 
 /** Tuile de KPI : libellé, valeur en gros, contexte. */
@@ -25,6 +30,7 @@ export function StatTile({
   hint,
   tone = "neutral",
   href,
+  onClick,
 }: StatTileProps) {
   const content = (
     <>
@@ -42,6 +48,18 @@ export function StatTile({
       <Link href={href} className={`${styles.tile} ${styles.link}`} data-tone={tone}>
         {content}
       </Link>
+    );
+  }
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        className={`${styles.tile} ${styles.link} ${styles.button}`}
+        data-tone={tone}
+        onClick={onClick}
+      >
+        {content}
+      </button>
     );
   }
   return (

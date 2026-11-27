@@ -210,9 +210,12 @@
   background: var(--status-warning);
 }
 
+/* « N à compléter » : bouton frère du repli de catégorie, posé à droite. */
 .groupIssues {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-regular);
+  position: absolute;
+  top: 50%;
+  right: 1.375rem;
+  transform: translateY(-50%);
 }
 
 .error {
@@ -268,8 +271,13 @@
 }
 
 .groupHeading {
+  position: relative;
   margin: 0;
   font-size: inherit;
+}
+
+.groupToggle[data-has-issues="true"] {
+  padding-right: 9.5rem;
 }
 
 .groupToggle {

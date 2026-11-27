@@ -12,8 +12,10 @@ Avant chaque tag `portal-v*` : déplacer les entrées `[Unreleased]` vers la nou
 ### Ajouté
 
 - Sparring : section **Sparrings** dans le panneau d’une équipe, sous Joueurs, avec une courte explication ; on y glisse-dépose un joueur (et inversement) ; section **Sparring** de la fiche membre ; badge Sparring gris argent (équipe, convocations, libellé « (sparring) ») ; un sparring part décoché à la création d’un match et reste ajoutable dans « Gérer les convoqués » ; à la liaison FFVB il est exclu d’office des matchs importés
+- Panneau d’une équipe : boutons « + » d’ajout (coach, joueur) détourés, sans texte (libellé au survol et pour les lecteurs d’écran)
 - Espace club : entrée menu **Équipes** séparée de **Membres** pour admins et coachs (page `/teams`) ; la vue joueur `/team` est inchangée
 - Équipes : fond léger des cartes et titre de colonne teintés selon la catégorie — même couleur sur `/teams`, `/team` et `/family/team`, une couleur distincte par catégorie du club
+- Indicateurs « à faire » cliquables jusqu’à l’action : Équipes — « N à compléter » d’une catégorie (filtre ses équipes incomplètes), puces « Sans coach » / « Aucun joueur » du panneau d’une équipe (ouvrent l’ajout du coach / joueur) ; Cotisations — tuiles **Reste dû** / **À traiter** et puce « aides à valider » (basculent la vue du suivi). `StatTile` et `StatusBadge` acceptent `onClick`
 
 ### Modifié
 
